@@ -51,7 +51,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::middleware('permission:borrow asset')->group(function () {
-        Route::resource('borrowings', BorrowingController::class)->only(['index', 'store']);
+        Route::get('/borrowings', [BorrowingController::class, 'index'])->name('borrowings.index');
+        Route::post('/borrowings', [BorrowingController::class, 'store'])->name('borrowings.store');
+        Route::patch('/borrowings/{borrowing}/approve', [BorrowingController::class, 'approve'])->name('borrowings.approve');
+        Route::patch('/borrowings/{borrowing}/reject', [BorrowingController::class, 'reject'])->name('borrowings.reject');
+        Route::patch('/borrowings/{borrowing}/return', [BorrowingController::class, 'confirmReturn'])->name('borrowings.confirmReturn');
+        Route::delete('/borrowings/{borrowing}', [BorrowingController::class, 'destroy'])->name('borrowings.destroy');
+        Route::get('/borrowings/export/excel', [BorrowingController::class, 'exportExcel']) ->name('borrowings.export.excel');
+        Route::get('/borrowings/export/pdf', [BorrowingController::class, 'exportPdf']) ->name('borrowings.export.pdf');
     });
 
     Route::middleware('permission:view reports')->group(function () {

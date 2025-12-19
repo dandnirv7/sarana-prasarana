@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AssetReturn;
+use App\Models\Borrowing;
 use Illuminate\Http\Request;
 
 class ReturnController extends Controller

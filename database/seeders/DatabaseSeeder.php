@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -18,6 +18,8 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             UserSeeder::class,
             CategorySeeder::class,
+            AssetSeeder::class,
+            BorrowingSeeder::class,
         ]);
 
         User::firstOrCreate(

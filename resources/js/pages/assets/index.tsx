@@ -42,8 +42,6 @@ export default function Assets() {
     const { assets, filters, categories, auth } = usePage().props as any;
     const permissions: string[] = auth.permissions ?? [];
 
-    console.log(categories);
-
     const [search, setSearch] = useState(filters.search ?? '');
     const [categoryId, setCategoryId] = useState(filters.category_id ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
@@ -104,8 +102,7 @@ export default function Assets() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Data Aset" />
 
-            <div className="mx-6 space-y-6">
-                {/* Filter */}
+            <div className="space-y-6 p-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="max-w-md flex-1">
                         <Label>Data Aset</Label>
@@ -250,7 +247,6 @@ export default function Assets() {
                     </div>
                 </div>
 
-                {/* Table */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Daftar Aset ({assets.total})</CardTitle>
@@ -383,7 +379,6 @@ export default function Assets() {
                     </CardContent>
                 </Card>
 
-                {/* Modal */}
                 <Modal
                     isOpen={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
@@ -395,7 +390,6 @@ export default function Assets() {
                     />
                 </Modal>
 
-                {/* Delete */}
                 <DoubleConfirmationModal
                     isOpen={!!deleteConfirm}
                     title="Hapus Aset"
