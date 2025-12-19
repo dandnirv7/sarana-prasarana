@@ -8,6 +8,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\UserController;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
@@ -24,6 +25,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)
         ->middleware('permission:view dashboard')
         ->name('dashboard');
+        
+    Route::middleware('permission:manage users')->group(function () {
+        Route::get('/users', [UserController::class, 'index'])->name('users.index');
+        Route::post('/users', [UserController::class, 'store'])->name('users.store');
+        Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+        Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+        Route::get('/users/export/excel', [UserController::class, 'exportExcel'])
+        ->name('users.export.excel');
+        Route::get('/users/export/pdf', [UserController::class, 'exportPdf'])
+        ->name('users.export.pdf');
+    });
 
     Route::middleware('permission:manage categories')->group(function () {
         Route::resource('categories', CategoryController::class);
@@ -40,6 +52,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('permission:view reports')->group(function () {
         Route::get('reports', ReportController::class)->name('reports');
     });
+
 
 });
 
