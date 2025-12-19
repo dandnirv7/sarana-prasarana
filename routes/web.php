@@ -42,7 +42,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::middleware('permission:manage assets')->group(function () {
-        Route::resource('assets', AssetController::class);
+        Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
+        Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
+        Route::put('/assets/{asset}', [AssetController::class, 'update'])->name('assets.update');
+        Route::delete('/assets/{asset}', [AssetController::class, 'destroy'])->name('assets.destroy');
+        Route::get('/assets/export/excel', [AssetController::class, 'exportExcel']) ->name('assets.export.excel');
+        Route::get('/assets/export/pdf', [AssetController::class, 'exportPdf']) ->name('assets.export.pdf');
     });
 
     Route::middleware('permission:borrow asset')->group(function () {

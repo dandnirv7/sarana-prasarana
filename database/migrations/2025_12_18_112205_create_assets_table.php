@@ -13,11 +13,11 @@ return new class extends Migration
     {
         Schema::create('assets', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
             $table->foreignId('category_id')->constrained()->cascadeOnDelete();
-            $table->enum('condition', ['Baik', 'Rusak', 'Perbaikan']);
-            $table->enum('status', ['Tersedia', 'Dipinjam', 'Perbaikan']);
-            $table->string('image')->nullable();
+            $table->string('name');
+            $table->enum('condition', ['Baik', 'Rusak Ringan', 'Rusak Berat']);
+            $table->enum('status', ['Tersedia', 'Dipinjam', 'Rusak']);
+            $table->string('image_path')->nullable();
             $table->timestamps();
         });
     }

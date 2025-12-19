@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 class Asset extends Model
 {
     protected $fillable = [
-        'name',
         'category_id',
+        'name',
         'condition',
         'status',
-        'image',
+        'image_path',
     ];
 
     public function category()
