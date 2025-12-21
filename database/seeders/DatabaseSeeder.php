@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             CategorySeeder::class,
             AssetSeeder::class,
             BorrowingSeeder::class,
+            AssetReturnSeeder::class,
         ]);
 
         User::firstOrCreate(
