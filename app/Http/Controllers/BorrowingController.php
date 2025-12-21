@@ -30,11 +30,16 @@ class BorrowingController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $users = User::select('id', 'name')->get(); 
-        
+        $users = User::select('id', 'name')->get();
+
+        $assets = Asset::where('status', 'Tersedia')
+            ->select('id', 'name')
+            ->get();
+
         return Inertia::render('borrowings/index', [
             'borrowings' => $borrowings,
-            'users' => $users, 
+            'users' => $users,
+            'assets' => $assets, 
             'filters' => $request->only('search', 'status'),
             'auth' => [
                 'user' => $request->user(),
@@ -141,6 +146,6 @@ class BorrowingController extends Controller
     public function exportPdf()
     {
         $borrowings = Borrowing::all();
-        return Pdf::loadView('pdf.borrowings', compact('borrowings'))->download('borrowings.pdf');
+        return Pdf::loadView('pdf.borrowings', compact('borrowings'))->download('data-peminjaman.pdf');
     }
 }

@@ -26,7 +26,7 @@ class Borrowing extends Model
         return $this->belongsTo(Asset::class);
     }
 
-    public function return()
+    public function assetReturn()
     {
         return $this->hasOne(AssetReturn::class);
     }

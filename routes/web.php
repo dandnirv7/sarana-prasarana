@@ -6,6 +6,7 @@ use Laravel\Fortify\Features;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\AssetController;
+use App\Http\Controllers\AssetReturnController;
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
@@ -57,8 +58,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/borrowings/{borrowing}/reject', [BorrowingController::class, 'reject'])->name('borrowings.reject');
         Route::patch('/borrowings/{borrowing}/return', [BorrowingController::class, 'confirmReturn'])->name('borrowings.confirmReturn');
         Route::delete('/borrowings/{borrowing}', [BorrowingController::class, 'destroy'])->name('borrowings.destroy');
-        Route::get('/borrowings/export/excel', [BorrowingController::class, 'exportExcel']) ->name('borrowings.export.excel');
-        Route::get('/borrowings/export/pdf', [BorrowingController::class, 'exportPdf']) ->name('borrowings.export.pdf');
+        Route::get('/borrowings/export/excel', [BorrowingController::class, 'exportExcel'])->name('borrowings.export.excel');
+        Route::get('/borrowings/export/pdf', [BorrowingController::class, 'exportPdf'])->name('borrowings.export.pdf');
+    });
+
+    Route::middleware('permission:return asset')->group(function () {
+        Route::get('/returns', [AssetReturnController::class, 'index'])->name('returns.index');
+        Route::post('/returns', [AssetReturnController::class, 'store'])->name('returns.store');
+        Route::patch('/returns/{assetReturn}/return', [AssetReturnController::class, 'confirmReturn'])->name('returns.confirmReturn');
+        Route::delete('/returns/{borrowing}', [AssetReturnController::class, 'destroy'])->name('returns.destroy');
+        Route::get('/returns/export/excel', [AssetReturnController::class, 'exportExcel']) ->name('returns.export.excel');
+        Route::get('/returns/export/pdf', [AssetReturnController::class, 'exportPdf']) ->name('returns.export.pdf');
     });
 
     Route::middleware('permission:view reports')->group(function () {

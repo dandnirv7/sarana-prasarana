@@ -13,11 +13,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+
 import AlertToast from '@/components/common/alert-toast';
 import DoubleConfirmationModal from '@/components/common/double-confirmation-modal';
 import Modal from '@/components/common/modal';
 import Pagination from '@/components/common/pagination';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { can } from '@/lib/permission';
 import { BreadcrumbItem } from '@/types';
@@ -50,7 +59,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function Borrowings() {
-    const { borrowings, filters, auth, users } = usePage().props as any;
+    const { borrowings, filters, auth, users, assets } = usePage().props as any;
+    console.log(filters.search);
     const permissions: string[] = auth.permissions ?? [];
     const createForm = useForm({
         user_id: '',
@@ -89,7 +99,7 @@ export default function Borrowings() {
                     message: 'Permintaan peminjaman dikirim',
                 });
             },
-            onError: (errors) => {
+            onError: () => {
                 setAlert({
                     type: 'error',
                     message: 'Terjadi kesalahan pada form',
@@ -153,193 +163,216 @@ export default function Borrowings() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Peminjaman" />
             <div className="space-y-6 p-6">
-                <div className="flex flex-col justify-between gap-4 md:flex-row">
-                    <Input
-                        placeholder="Cari peminjam atau aset..."
-                        value={search}
-                        onChange={(e) => {
-                            setSearch(e.target.value);
-                            applyFilter({ search: e.target.value, page: 1 });
-                        }}
-                    />
-                    <select
-                        className="rounded border px-3 py-2"
-                        value={status}
-                        onChange={(e) => {
-                            setStatus(e.target.value);
-                            applyFilter({ status: e.target.value, page: 1 });
-                        }}
-                    >
-                        <option value="">Semua Status</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Disetujui">Disetujui</option>
-                        <option value="Dikembalikan">Dikembalikan</option>
-                        <option value="Ditolak">Ditolak</option>
-                    </select>
-                    {can(permissions, 'borrow asset') && (
-                        <Button onClick={() => setCreateModalOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Ajukan Peminjaman
-                        </Button>
-                    )}
-                    {can(permissions, 'manage users') && (
-                        <>
-                            <Button
-                                variant="outline"
-                                className="gap-2 bg-transparent"
-                                onClick={() =>
-                                    window.open(
-                                        '/borrowings/export/pdf',
-                                        '_blank',
-                                    )
-                                }
-                            >
-                                <Download className="h-4 w-4" />
-                                PDF
-                            </Button>
-
-                            <Button
-                                variant="outline"
-                                className="gap-2 bg-transparent"
-                                onClick={() =>
-                                    (window.location.href =
-                                        '/borrowings/export/excel')
-                                }
-                            >
-                                <FileText className="h-4 w-4" />
-                                Excel
-                            </Button>
-                        </>
-                    )}
-                    {createModalOpen && (
-                        <Modal
-                            isOpen
-                            title="Ajukan Peminjaman"
-                            onClose={() => setCreateModalOpen(false)}
+                <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+                    <div className="max-w-md flex-1">
+                        <Label htmlFor="search">Cari Peminjaman</Label>
+                        <Input
+                            id="search"
+                            placeholder="Cari peminjam atau aset..."
+                            value={search}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                applyFilter({
+                                    search: e.target.value,
+                                    page: 1,
+                                });
+                            }}
+                        />
+                    </div>
+                    <div className="flex gap-2">
+                        <Select
+                            value={status}
+                            onValueChange={(value) => {
+                                setStatus(value);
+                                applyFilter({
+                                    status: value,
+                                    page: 1,
+                                });
+                            }}
                         >
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">
-                                        Pilih User
-                                    </label>
-                                    <select
-                                        className="w-full rounded border px-2 py-1"
-                                        value={createForm.data.user_id}
-                                        onChange={(e) =>
-                                            createForm.setData(
-                                                'user_id',
-                                                e.target.value,
-                                            )
-                                        }
-                                    >
-                                        <option value="">
-                                            -- Pilih User --
-                                        </option>
-                                        {users.map(
-                                            (user: {
-                                                id: number;
-                                                name: string;
-                                            }) => (
-                                                <option
-                                                    key={user.id}
-                                                    value={user.id}
-                                                >
-                                                    {user.name}
-                                                </option>
-                                            ),
-                                        )}
-                                    </select>
-                                    {createForm.errors.user_id && (
-                                        <p className="text-sm text-red-600">
-                                            {createForm.errors.user_id}
-                                        </p>
-                                    )}
-                                </div>
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">
-                                        Pilih Aset
-                                    </label>
-                                    <select
-                                        className="w-full rounded border px-2 py-1"
-                                        value={createForm.data.asset_id}
-                                        onChange={(e) =>
-                                            createForm.setData(
-                                                'asset_id',
-                                                e.target.value,
-                                            )
-                                        }
-                                    >
-                                        <option value="">
-                                            -- Pilih Aset --
-                                        </option>
-                                        {borrowings.data.map(
-                                            (borrowing: Borrowing) => (
-                                                <option
-                                                    key={borrowing.id}
-                                                    value={borrowing.id}
-                                                >
-                                                    {borrowing.asset.name}
-                                                </option>
-                                            ),
-                                        )}
-                                    </select>
-                                    {createForm.errors.asset_id && (
-                                        <p className="text-sm text-red-600">
-                                            {createForm.errors.asset_id}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">
-                                        Tanggal Pinjam
-                                    </label>
-                                    <input
-                                        type="date"
-                                        className="w-full rounded border px-2 py-1"
-                                        value={createForm.data.borrow_date}
-                                        onChange={(e) =>
-                                            createForm.setData(
-                                                'borrow_date',
-                                                e.target.value,
-                                            )
-                                        }
-                                    />
-                                    {createForm.errors.borrow_date && (
-                                        <p className="text-sm text-red-600">
-                                            {createForm.errors.borrow_date}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">
-                                        Tanggal Kembali
-                                    </label>
-                                    <input
-                                        type="date"
-                                        className="w-full rounded border px-2 py-1"
-                                        value={createForm.data.return_date}
-                                        onChange={(e) =>
-                                            createForm.setData(
-                                                'return_date',
-                                                e.target.value,
-                                            )
-                                        }
-                                    />
-                                    {createForm.errors.return_date && (
-                                        <p className="text-sm text-red-600">
-                                            {createForm.errors.return_date}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <Button onClick={submitBorrowing}>
-                                    Kirim Permintaan
+                            <SelectTrigger className="w-full rounded border px-3 py-2">
+                                <SelectValue placeholder="Semua Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Pending">Pending</SelectItem>
+                                <SelectItem value="Disetujui">
+                                    Disetujui
+                                </SelectItem>
+                                <SelectItem value="Dikembalikan">
+                                    Dikembalikan
+                                </SelectItem>
+                                <SelectItem value="Ditolak">Ditolak</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {can(permissions, 'borrow asset') && (
+                            <Button onClick={() => setCreateModalOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Ajukan Peminjaman
+                            </Button>
+                        )}
+                        {can(permissions, 'manage users') && (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    className="gap-2 bg-transparent"
+                                    onClick={() =>
+                                        window.open(
+                                            '/borrowings/export/pdf',
+                                            '_blank',
+                                        )
+                                    }
+                                >
+                                    <Download className="h-4 w-4" />
+                                    PDF
                                 </Button>
-                            </div>
-                        </Modal>
-                    )}
+
+                                <Button
+                                    variant="outline"
+                                    className="gap-2 bg-transparent"
+                                    onClick={() =>
+                                        (window.location.href =
+                                            '/borrowings/export/excel')
+                                    }
+                                >
+                                    <FileText className="h-4 w-4" />
+                                    Excel
+                                </Button>
+                            </>
+                        )}
+                        {createModalOpen && (
+                            <Modal
+                                isOpen
+                                title="Ajukan Peminjaman"
+                                onClose={() => setCreateModalOpen(false)}
+                            >
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-sm font-medium text-muted-foreground">
+                                            Pilih User
+                                        </label>
+                                        <select
+                                            className="w-full rounded border px-2 py-1"
+                                            value={createForm.data.user_id}
+                                            onChange={(e) =>
+                                                createForm.setData(
+                                                    'user_id',
+                                                    e.target.value,
+                                                )
+                                            }
+                                        >
+                                            <option value="">
+                                                -- Pilih User --
+                                            </option>
+                                            {users.map(
+                                                (user: {
+                                                    id: number;
+                                                    name: string;
+                                                }) => (
+                                                    <option
+                                                        key={user.id}
+                                                        value={user.id}
+                                                    >
+                                                        {user.name}
+                                                    </option>
+                                                ),
+                                            )}
+                                        </select>
+                                        {createForm.errors.user_id && (
+                                            <p className="text-sm text-red-600">
+                                                {createForm.errors.user_id}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-muted-foreground">
+                                            Pilih Aset
+                                        </label>
+                                        <select
+                                            className="w-full rounded border px-2 py-1"
+                                            value={createForm.data.asset_id}
+                                            onChange={(e) =>
+                                                createForm.setData(
+                                                    'asset_id',
+                                                    e.target.value,
+                                                )
+                                            }
+                                        >
+                                            <option value="">
+                                                -- Pilih Aset --
+                                            </option>
+                                            {assets.map(
+                                                (asset: {
+                                                    id: number;
+                                                    name: string;
+                                                }) => (
+                                                    <option
+                                                        key={asset.id}
+                                                        value={asset.id}
+                                                    >
+                                                        {asset.name}
+                                                    </option>
+                                                ),
+                                            )}
+                                        </select>
+
+                                        {createForm.errors.asset_id && (
+                                            <p className="text-sm text-red-600">
+                                                {createForm.errors.asset_id}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="text-sm font-medium text-muted-foreground">
+                                            Tanggal Pinjam
+                                        </label>
+                                        <input
+                                            type="date"
+                                            className="w-full rounded border px-2 py-1"
+                                            value={createForm.data.borrow_date}
+                                            onChange={(e) =>
+                                                createForm.setData(
+                                                    'borrow_date',
+                                                    e.target.value,
+                                                )
+                                            }
+                                        />
+                                        {createForm.errors.borrow_date && (
+                                            <p className="text-sm text-red-600">
+                                                {createForm.errors.borrow_date}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="text-sm font-medium text-muted-foreground">
+                                            Tanggal Kembali
+                                        </label>
+                                        <input
+                                            type="date"
+                                            className="w-full rounded border px-2 py-1"
+                                            value={createForm.data.return_date}
+                                            onChange={(e) =>
+                                                createForm.setData(
+                                                    'return_date',
+                                                    e.target.value,
+                                                )
+                                            }
+                                        />
+                                        {createForm.errors.return_date && (
+                                            <p className="text-sm text-red-600">
+                                                {createForm.errors.return_date}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <Button onClick={submitBorrowing}>
+                                        Kirim Permintaan
+                                    </Button>
+                                </div>
+                            </Modal>
+                        )}
+                    </div>
                 </div>
                 <Card>
                     <CardHeader>
@@ -398,7 +431,10 @@ export default function Borrowings() {
                                                             : b.status ===
                                                                 'Disetujui'
                                                               ? 'success'
-                                                              : 'destructive'
+                                                              : b.status ===
+                                                                  'Dikembalikan'
+                                                                ? 'secondary'
+                                                                : 'destructive'
                                                     }
                                                 >
                                                     {b.status}
