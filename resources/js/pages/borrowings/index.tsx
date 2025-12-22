@@ -1,4 +1,4 @@
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import {
     CheckCircle,
     Download,
@@ -29,22 +29,25 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { can } from '@/lib/permission';
+import borrowings from '@/routes/borrowings';
 import { BreadcrumbItem } from '@/types';
 
 interface User {
     id: number;
     name: string;
 }
+
 interface Asset {
     id: number;
     name: string;
 }
+
 interface Borrowing {
     id: number;
     user_id: number;
     asset_id: number;
     borrow_date: string;
-    return_date: string;
+    return_date: string | null;
     actual_return_date: string | null;
     asset_condition: string | null;
     status: 'Pending' | 'Disetujui' | 'Dikembalikan' | 'Ditolak';
@@ -54,13 +57,35 @@ interface Borrowing {
     asset: Asset;
 }
 
+interface BorrowingsProps {
+    borrowings: {
+        data: Borrowing[];
+        total: number;
+        current_page: number;
+        last_page: number;
+    };
+    filters: {
+        search: string;
+        status: string;
+    };
+    auth: {
+        permissions: string[];
+    };
+    users: User[];
+    assets: Asset[];
+}
+
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Peminjaman', href: '/borrowings' },
+    { title: 'Peminjaman', href: borrowings.index.url() },
 ];
 
-export default function Borrowings() {
-    const { borrowings, filters, auth, users, assets } = usePage().props as any;
-    console.log(filters.search);
+export default function Borrowings({
+    borrowings,
+    filters,
+    auth,
+    users,
+    assets,
+}: BorrowingsProps) {
     const permissions: string[] = auth.permissions ?? [];
     const createForm = useForm({
         user_id: '',
@@ -68,6 +93,7 @@ export default function Borrowings() {
         borrow_date: '',
         return_date: '',
     });
+
     const [createModalOpen, setCreateModalOpen] = useState(false);
 
     const [search, setSearch] = useState(filters?.search ?? '');
@@ -81,7 +107,11 @@ export default function Borrowings() {
         message: string;
     } | null>(null);
 
-    const applyFilter = (params: any = {}) => {
+    const applyFilter = (params: {
+        search?: string;
+        status?: string;
+        page?: number;
+    }) => {
         router.get(
             '/borrowings',
             { search, status, ...params },

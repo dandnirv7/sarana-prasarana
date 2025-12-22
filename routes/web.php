@@ -17,10 +17,6 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
-Route::get('/test-permission', fn () => 'OK')
-    ->middleware('permission:view dashboard');
-
-
 Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/dashboard', DashboardController::class)

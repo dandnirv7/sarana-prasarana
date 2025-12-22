@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Borrowing extends Model
 {
+    protected $dates = ['borrow_date', 'return_date', 'actual_return_date'];
+
     protected $fillable = [
         'user_id',
         'asset_id',
