@@ -19,21 +19,21 @@ class BorrowingSeeder extends Seeder
         }
 
         $data = [
-            ['Laptop Dell XPS 13', '2024-12-01', '2024-12-05', 'Pending'],
-            ['Proyektor EPSON EB-X05', '2024-12-02', '2024-12-03', 'Disetujui'],
-            ['Printer HP LaserJet', '2024-12-03', '2024-12-10', 'Disetujui'],
-            ['Whiteboard Magnetic', '2024-12-04', '2024-12-06', 'Pending'],
-            ['Air Conditioner Panasonic', '2024-12-05', '2024-12-12', 'Disetujui'],
-            ['Router WiFi TP-Link', '2024-12-06', '2024-12-08', 'Pending'],
-            ['Monitor LG 27 inch', '2024-12-07', '2024-12-09', 'Disetujui'],
-            ['Keyboard Mekanik', '2024-12-08', '2024-12-11', 'Pending'],
-            ['Mouse Wireless', '2024-12-09', '2024-12-10', 'Disetujui'],
-            ['Meja Kerja Kayu', '2024-12-10', '2024-12-15', 'Pending'],
-            ['Kursi Ergonomis', '2024-12-11', '2024-12-14', 'Pending'],
-            ['Lemari Penyimpanan', '2024-12-12', '2024-12-18', 'Disetujui'],
-            ['Laptop Dell XPS 13', '2024-12-13', '2024-12-17', 'Pending'],
-            ['Monitor LG 27 inch', '2024-12-14', '2024-12-20', 'Disetujui'],
-            ['Printer HP LaserJet', '2024-12-15', '2024-12-22', 'Pending'],
+            ['Laptop Dell XPS 13', '2025-12-01', '2025-12-05', 'Pending'],
+            ['Proyektor EPSON EB-X05', '2025-12-02', '2025-12-03', 'Disetujui'],
+            ['Printer HP LaserJet', '2025-12-03', '2025-12-10', 'Disetujui'],
+            ['Whiteboard Magnetic', '2025-12-04', '2025-12-06', 'Pending'],
+            ['Air Conditioner Panasonic', '2025-12-05', '2025-12-12', 'Disetujui'],
+            ['Router WiFi TP-Link', '2025-12-06', '2025-12-08', 'Pending'],
+            ['Monitor LG 27 inch', '2025-12-07', '2025-12-09', 'Disetujui'],
+            ['Keyboard Mekanik', '2025-12-08', '2025-12-11', 'Pending'],
+            ['Mouse Wireless', '2025-12-09', '2025-12-10', 'Disetujui'],
+            ['Meja Kerja Kayu', '2025-12-10', '2025-12-15', 'Pending'],
+            ['Kursi Ergonomis', '2025-12-11', '2025-12-14', 'Pending'],
+            ['Lemari Penyimpanan', '2025-12-12', '2025-12-18', 'Disetujui'],
+            ['Laptop Dell XPS 13', '2025-12-13', '2025-12-17', 'Pending'],
+            ['Monitor LG 27 inch', '2025-12-14', '2025-12-20', 'Disetujui'],
+            ['Printer HP LaserJet', '2025-12-15', '2025-12-22', 'Pending'],
         ];
 
         foreach ($data as [$assetName, $borrowDate, $returnDate, $status]) {

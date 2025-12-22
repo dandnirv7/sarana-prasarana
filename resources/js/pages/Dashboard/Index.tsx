@@ -56,13 +56,13 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const Dashboard = ({
+export default function Dashboard({
     stats,
     categoryData,
     assetStatusData,
     formattedAssetStatusData,
     recentActivities,
-}: DashboardProps) => {
+}: DashboardProps) {
     const statistics: Stat[] = [
         {
             title: 'Total Aset',
@@ -185,6 +185,4 @@ const Dashboard = ({
             </div>
         </AppLayout>
     );
-};
-
-export default Dashboard;
+}
