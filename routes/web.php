@@ -9,6 +9,8 @@ use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetReturnController;
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\Settings\PasswordController;
+use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\UserController;
 
 Route::get('/', function () {
@@ -73,7 +75,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/reports/export/excel', [ReportController::class, 'exportExcel'])->name('reports.export.excel');
     });
 
-
+    Route::group(['prefix'=> 'settings'], function () {
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+        
+        Route::resource('categories', CategoryController::class); 
+    });
 });
 
 
