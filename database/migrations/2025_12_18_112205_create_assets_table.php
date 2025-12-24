@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('category_id')->constrained()->cascadeOnDelete();
             $table->string('name');
-            $table->enum('condition', ['Baik', 'Rusak Ringan', 'Rusak Berat']);
-            $table->enum('status', ['Tersedia', 'Dipinjam', 'Rusak']);
+            $table->enum('condition', ['Baik', 'Rusak', 'Rusak Ringan', 'Rusak Berat', 'Perbaikan', 'Belum Diperbaiki', 'Belum Dikembalikan'])->nullable();
+            $table->foreignId('status_id')->nullable()->constrained('statuses')->nullOnDelete();
             $table->string('image_path')->nullable();
             $table->timestamps();
         });

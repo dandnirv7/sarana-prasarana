@@ -42,6 +42,11 @@ interface Asset {
     name: string;
 }
 
+interface Status {
+    id: number;
+    name: string;
+}
+
 interface Borrowing {
     id: number;
     user_id: number;
@@ -50,7 +55,7 @@ interface Borrowing {
     return_date: string | null;
     actual_return_date: string | null;
     asset_condition: string | null;
-    status: 'Pending' | 'Disetujui' | 'Dikembalikan' | 'Ditolak';
+    status: Status;
     created_at: string;
     updated_at: string;
     user: User;
@@ -66,13 +71,14 @@ interface BorrowingsProps {
     };
     filters: {
         search: string;
-        status: string;
+        status_id?: number;
     };
     auth: {
         permissions: string[];
     };
     users: User[];
     assets: Asset[];
+    statuses: Status[];
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -85,6 +91,7 @@ export default function Borrowings({
     auth,
     users,
     assets,
+    statuses,
 }: BorrowingsProps) {
     const permissions: string[] = auth.permissions ?? [];
     const createForm = useForm({
@@ -97,7 +104,7 @@ export default function Borrowings({
     const [createModalOpen, setCreateModalOpen] = useState(false);
 
     const [search, setSearch] = useState(filters?.search ?? '');
-    const [status, setStatus] = useState(filters?.status ?? '');
+    const [status, setStatus] = useState<number | ''>(filters?.status_id ?? '');
     const [selected, setSelected] = useState<Borrowing | null>(null);
     const [approveTarget, setApproveTarget] = useState<Borrowing | null>(null);
     const [rejectTarget, setRejectTarget] = useState<Borrowing | null>(null);
@@ -114,7 +121,7 @@ export default function Borrowings({
     }) => {
         router.get(
             '/borrowings',
-            { search, status, ...params },
+            { search, status_id: status || undefined, ...params },
             { preserveState: true, replace: true },
         );
     };
@@ -211,9 +218,9 @@ export default function Borrowings({
                     </div>
                     <div className="flex gap-2">
                         <Select
-                            value={status}
+                            value={status?.toString()}
                             onValueChange={(value) => {
-                                setStatus(value);
+                                setStatus(Number(value));
                                 applyFilter({
                                     status: value,
                                     page: 1,
@@ -224,14 +231,11 @@ export default function Borrowings({
                                 <SelectValue placeholder="Semua Status" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="Pending">Pending</SelectItem>
-                                <SelectItem value="Disetujui">
-                                    Disetujui
-                                </SelectItem>
-                                <SelectItem value="Dikembalikan">
-                                    Dikembalikan
-                                </SelectItem>
-                                <SelectItem value="Ditolak">Ditolak</SelectItem>
+                                {statuses.map((s) => (
+                                    <SelectItem key={s.id} value={s.name}>
+                                        {s.name}
+                                    </SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                         {can(permissions, 'borrow asset') && (
@@ -456,18 +460,20 @@ export default function Borrowings({
                                             <td className="px-4 py-3">
                                                 <Badge
                                                     variant={
-                                                        b.status === 'Pending'
+                                                        b.status.name ===
+                                                        'Menunggu'
                                                             ? 'warning'
-                                                            : b.status ===
+                                                            : b.status.name ===
                                                                 'Disetujui'
                                                               ? 'success'
-                                                              : b.status ===
+                                                              : b.status
+                                                                      .name ===
                                                                   'Dikembalikan'
                                                                 ? 'secondary'
                                                                 : 'destructive'
                                                     }
                                                 >
-                                                    {b.status}
+                                                    {b.status.name}
                                                 </Badge>
                                             </td>
                                             <td className="flex flex-wrap gap-2 py-2">
@@ -480,7 +486,8 @@ export default function Borrowings({
                                                 >
                                                     <Eye className="h-4 w-4" />
                                                 </Button>
-                                                {b.status === 'Pending' && (
+                                                {b.status.name ===
+                                                    'Menunggu' && (
                                                     <>
                                                         <Button
                                                             size="sm"
@@ -507,7 +514,8 @@ export default function Borrowings({
                                                         </Button>
                                                     </>
                                                 )}
-                                                {b.status === 'Disetujui' && (
+                                                {b.status.name ===
+                                                    'Disetujui' && (
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
@@ -571,15 +579,16 @@ export default function Borrowings({
                                 </label>
                                 <Badge
                                     variant={
-                                        selected.status === 'Pending'
+                                        selected.status.name === 'Menunggu'
                                             ? 'warning'
-                                            : selected.status === 'Disetujui'
+                                            : selected.status.name ===
+                                                'Disetujui'
                                               ? 'success'
                                               : 'destructive'
                                     }
                                     className="mt-1"
                                 >
-                                    {selected.status}
+                                    {selected.status.name}
                                 </Badge>
                             </div>
                         </div>

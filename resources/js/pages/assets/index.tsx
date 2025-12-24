@@ -1,30 +1,39 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Download, Edit2, FileText, Plus, Trash2 } from 'lucide-react';
+import {
+    ChevronsUpDown,
+    Download,
+    Edit2,
+    FileText,
+    Plus,
+    Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 
 import AlertToast from '@/components/common/alert-toast';
 import DoubleConfirmationModal from '@/components/common/double-confirmation-modal';
 import Modal from '@/components/common/modal';
 import Pagination from '@/components/common/pagination';
+import AssetForm from '@/components/forms/asset-form';
 import AppLayout from '@/layouts/app-layout';
 
-import AssetForm from '@/components/forms/asset-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandItem,
+} from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { can } from '@/lib/permission';
-import { BreadcrumbItem } from '@/types';
-import { CommandGroup } from 'cmdk';
-import { ChevronsUpDown } from 'lucide-react';
-
-import { Command, CommandEmpty, CommandItem } from '@/components/ui/command';
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { can } from '@/lib/permission';
+import { BreadcrumbItem } from '@/types';
 
 type AssetItem = {
     id: number;
@@ -32,41 +41,32 @@ type AssetItem = {
     category_id: number;
     category_name: string;
     condition: string;
-    status: 'Tersedia' | 'Dipinjam' | 'Rusak';
+    status_id: number;
+    status_name: string;
     image?: string;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Aset', href: '/assets' }];
 
 export default function Assets() {
-    const { assets, filters, categories, auth } = usePage().props as any;
+    const { assets, filters, categories, auth, assetStatuses } = usePage()
+        .props as any;
     const permissions: string[] = auth.permissions ?? [];
 
     const [search, setSearch] = useState(filters.search ?? '');
     const [categoryId, setCategoryId] = useState(filters.category_id ?? '');
-    const [status, setStatus] = useState(filters.status ?? '');
+    const [statusId, setStatusId] = useState(filters.status_id ?? '');
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [editingAsset, setEditingAsset] = useState<AssetItem | null>(null);
-    const [selectedAsset, setSelectedAsset] = useState<AssetItem | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<AssetItem | null>(null);
-
     const [alert, setAlert] = useState<any>(null);
 
     const applyFilter = (params: any = {}) => {
         router.get(
             '/assets',
-            {
-                search,
-                category_id: categoryId,
-                status,
-                ...params,
-            },
-            {
-                preserveState: true,
-                replace: true,
-            },
+            { search, category_id: categoryId, status_id: statusId, ...params },
+            { preserveState: true, replace: true },
         );
     };
 
@@ -76,20 +76,53 @@ export default function Assets() {
                 onSuccess: () => {
                     setIsModalOpen(false);
                     setEditingAsset(null);
+                    setAlert({
+                        type: 'success',
+                        message: 'Aset berhasil diperbarui',
+                    });
+                },
+                onError: () => {
+                    setAlert({
+                        type: 'error',
+                        message: 'Gagal memperbarui aset',
+                    });
                 },
             });
         } else {
             router.post('/assets', data, {
-                onSuccess: () => setIsModalOpen(false),
+                onSuccess: () => {
+                    setIsModalOpen(false);
+                    setAlert({
+                        type: 'success',
+                        message: 'Aset berhasil ditambahkan',
+                    });
+                },
+                onError: () => {
+                    setAlert({
+                        type: 'error',
+                        message: 'Gagal menambahkan aset',
+                    });
+                },
             });
         }
     };
 
     const handleDelete = () => {
         if (!deleteConfirm) return;
-
         router.delete(`/assets/${deleteConfirm.id}`, {
-            onSuccess: () => setDeleteConfirm(null),
+            onSuccess: () => {
+                setDeleteConfirm(null);
+                setAlert({
+                    type: 'success',
+                    message: 'Aset berhasil dihapus',
+                });
+            },
+            onError: () => {
+                setAlert({
+                    type: 'error',
+                    message: 'Gagal menghapus aset',
+                });
+            },
         });
     };
 
@@ -128,15 +161,13 @@ export default function Assets() {
                                     className="w-full justify-between"
                                 >
                                     {categoryId
-                                        ? (categories.find(
-                                              (c: { id: number }) =>
-                                                  c.id === categoryId,
-                                          )?.name ?? 'Pilih Kategori')
+                                        ? categories.find(
+                                              (c: any) => c.id === categoryId,
+                                          )?.name
                                         : 'Semua Kategori'}
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                             </PopoverTrigger>
-
                             <PopoverContent className="w-full p-0">
                                 <Command>
                                     <CommandEmpty>
@@ -146,7 +177,6 @@ export default function Assets() {
                                         {categories.map((c: any) => (
                                             <CommandItem
                                                 key={c.id}
-                                                value={c.id}
                                                 onSelect={() => {
                                                     setCategoryId(c.id);
                                                     applyFilter({
@@ -167,37 +197,33 @@ export default function Assets() {
                             <PopoverTrigger asChild>
                                 <Button
                                     variant="outline"
-                                    role="combobox"
-                                    className="w-full justify-between"
+                                    className="justify-between"
                                 >
-                                    {status ? status : 'Semua Status'}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    {statusId
+                                        ? assetStatuses.find(
+                                              (s: any) => s.id === statusId,
+                                          )?.name
+                                        : 'Semua Status'}
+                                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
                                 </Button>
                             </PopoverTrigger>
-
-                            <PopoverContent className="w-full p-0">
+                            <PopoverContent className="p-0">
                                 <Command>
-                                    <CommandEmpty>
-                                        Status tidak ditemukan
-                                    </CommandEmpty>
                                     <CommandGroup>
-                                        {['Tersedia', 'Dipinjam', 'Rusak'].map(
-                                            (statusOption) => (
-                                                <CommandItem
-                                                    key={statusOption}
-                                                    value={statusOption}
-                                                    onSelect={() => {
-                                                        setStatus(statusOption);
-                                                        applyFilter({
-                                                            status: statusOption,
-                                                            page: 1,
-                                                        });
-                                                    }}
-                                                >
-                                                    {statusOption}
-                                                </CommandItem>
-                                            ),
-                                        )}
+                                        {assetStatuses.map((s: any) => (
+                                            <CommandItem
+                                                key={s.id}
+                                                onSelect={() => {
+                                                    setStatusId(s.id);
+                                                    applyFilter({
+                                                        status_id: s.id,
+                                                        page: 1,
+                                                    });
+                                                }}
+                                            >
+                                                {s.name}
+                                            </CommandItem>
+                                        ))}
                                     </CommandGroup>
                                 </Command>
                             </PopoverContent>
@@ -211,15 +237,15 @@ export default function Assets() {
                                 }}
                                 className="gap-2"
                             >
-                                <Plus className="h-4 w-4" />
-                                Tambah Aset
+                                <Plus className="h-4 w-4" /> Tambah Aset
                             </Button>
                         )}
+
                         {can(permissions, 'manage users') && (
                             <>
                                 <Button
                                     variant="outline"
-                                    className="gap-2 bg-transparent"
+                                    className="gap-2"
                                     onClick={() =>
                                         window.open(
                                             '/assets/export/pdf',
@@ -227,20 +253,17 @@ export default function Assets() {
                                         )
                                     }
                                 >
-                                    <Download className="h-4 w-4" />
-                                    PDF
+                                    <Download className="h-4 w-4" /> PDF
                                 </Button>
-
                                 <Button
                                     variant="outline"
-                                    className="gap-2 bg-transparent"
+                                    className="gap-2"
                                     onClick={() =>
                                         (window.location.href =
                                             '/assets/export/excel')
                                     }
                                 >
-                                    <FileText className="h-4 w-4" />
-                                    Excel
+                                    <FileText className="h-4 w-4" /> Excel
                                 </Button>
                             </>
                         )}
@@ -251,51 +274,42 @@ export default function Assets() {
                     <CardHeader>
                         <CardTitle>Daftar Aset ({assets.total})</CardTitle>
                     </CardHeader>
-
                     <CardContent>
                         <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead>
                                     <tr className="border-b border-border text-left">
-                                        <th className="px-4 py-3 text-left font-semibold text-foreground">
+                                        <th className="px-4 py-3 font-semibold text-foreground">
                                             Gambar
                                         </th>
-                                        <th className="px-4 py-3 text-left font-semibold text-foreground">
+                                        <th className="px-4 py-3 font-semibold text-foreground">
                                             Nama Aset
                                         </th>
-                                        <th className="px-4 py-3 text-left font-semibold text-foreground">
+                                        <th className="px-4 py-3 font-semibold text-foreground">
                                             Kategori
                                         </th>
-                                        <th className="px-4 py-3 text-left font-semibold text-foreground">
+                                        <th className="px-4 py-3 font-semibold text-foreground">
                                             Kondisi
                                         </th>
-                                        <th className="px-4 py-3 text-left font-semibold text-foreground">
+                                        <th className="px-4 py-3 font-semibold text-foreground">
                                             Status
                                         </th>
-                                        {(can(permissions, 'manage assets') ||
-                                            can(
-                                                permissions,
-                                                'manage assets',
-                                            )) && (
-                                            <th className="px-4 py-3 text-left font-semibold text-foreground">
+                                        {can(permissions, 'manage assets') && (
+                                            <th className="px-4 py-3 font-semibold text-foreground">
                                                 Aksi
                                             </th>
                                         )}
                                     </tr>
                                 </thead>
-
                                 <tbody>
                                     {assets.data.map((asset: AssetItem) => (
                                         <tr
                                             key={asset.id}
-                                            className="border-b border-border transition-colors hover:bg-muted/50"
+                                            className="border-b border-border hover:bg-muted/50"
                                         >
                                             <td className="px-4 py-3">
                                                 <img
-                                                    src={
-                                                        asset.image ??
-                                                        '/placeholder.svg'
-                                                    }
+                                                    src={asset.image}
                                                     className="h-12 w-12 rounded object-cover"
                                                     alt={asset.name}
                                                 />
@@ -312,20 +326,20 @@ export default function Assets() {
                                             <td className="px-4 py-3">
                                                 <Badge
                                                     variant={
-                                                        asset.status ===
+                                                        asset.status_name ===
                                                         'Tersedia'
                                                             ? 'success'
-                                                            : asset.status ===
+                                                            : asset.status_name ===
                                                                 'Dipinjam'
                                                               ? 'warning'
                                                               : 'destructive'
                                                     }
                                                 >
-                                                    {asset.status}
+                                                    {asset.status_name}
                                                 </Badge>
                                             </td>
                                             <td className="px-4 py-3">
-                                                <div className="flex justify-start gap-2">
+                                                <div className="flex gap-2">
                                                     {can(
                                                         permissions,
                                                         'manage users',
@@ -341,7 +355,6 @@ export default function Assets() {
                                                             <Edit2 className="h-4 w-4" />
                                                         </button>
                                                     )}
-
                                                     {can(
                                                         permissions,
                                                         'manage assets',
@@ -385,8 +398,10 @@ export default function Assets() {
                     title={editingAsset ? 'Edit Aset' : 'Tambah Aset'}
                 >
                     <AssetForm
-                        initialData={editingAsset!}
+                        initialData={editingAsset ?? undefined} // <- penting
                         onSubmit={handleSubmit}
+                        onSuccess={() => setIsModalOpen(false)} // tutup modal setelah sukses
+                        onError={(err) => console.log(err)} // debug error
                     />
                 </Modal>
 
@@ -401,7 +416,11 @@ export default function Assets() {
                 />
 
                 {alert && (
-                    <AlertToast {...alert} onClose={() => setAlert(null)} />
+                    <AlertToast
+                        type={alert.type}
+                        message={alert.message}
+                        onClose={() => setAlert(null)}
+                    />
                 )}
             </div>
         </AppLayout>

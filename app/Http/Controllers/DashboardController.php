@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Carbon\Carbon;
+use App\Models\Status;
 
 class DashboardController extends Controller
 {
@@ -16,14 +17,26 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        $totalAssets = Asset::count();
-        $availableAssets = Asset::where('status', 'Tersedia')->count();
-        $borrowedAssets = Asset::where('status', 'Dipinjam')->count();
+        $availableStatus = Status::where('type', 'asset')->where('name', 'Tersedia')->first();
+        $borrowedStatus = Status::where('type', 'asset')->where('name', 'Dipinjam')->first();
+        $pendingStatus = Status::where('type', 'borrowing')->where('name', 'Menunggu')->first();
+        $returnedStatus = Status::where('type', 'asset')->where('name', 'Dikembalikan')->first();
+        $repairingStatus = Status::where('type', 'asset')->where('name', 'Perbaikan')->first();
 
+        $totalAssets = Asset::count();
+        $availableAssets = Asset::where('status_id', $availableStatus->id)->count();
+        $borrowedAssets = Asset::where('status_id', $borrowedStatus->id)->count();
+        $repairedAssets = Asset::where('status_id', $repairingStatus->id)->count();  
+        $returnedAssets = Asset::where('status_id', $returnedStatus->id)->count();  
+        
         $lastMonth = now()->subMonth();
         $totalAssetsTrend = Asset::where('created_at', '>=', $lastMonth)->count();
-        $availableAssetsTrend = Asset::where('status', 'Tersedia')->where('created_at', '>=', $lastMonth)->count();
-        $borrowedAssetsTrend = Asset::where('status', 'Dipinjam')->where('created_at', '>=', $lastMonth)->count();
+        $availableAssetsTrend = Asset::where('status_id', $availableStatus->id)
+            ->where('created_at', '>=', $lastMonth)
+            ->count();
+        $borrowedAssetsTrend = Asset::where('status_id', $borrowedStatus->id)
+            ->where('created_at', '>=', $lastMonth)
+            ->count();
 
         $totalBorrowingsTrend = Borrowing::where('borrow_date', '>=', $lastMonth)->count(); 
 
@@ -35,37 +48,35 @@ class DashboardController extends Controller
                 'asset_name' => $borrowing->asset->name,
                 'user_name' => $borrowing->user->name,
                 'borrowing_id' => $borrowing->id,
-                'borrowed_at' => Carbon::parse($borrowing->borrow_date)->format('d M Y, H:i'), 
+                'borrowed_at' => Carbon::parse($borrowing->borrow_date)->format('d M Y, H:i'),
             ]);
 
-        $categoryData = Category::withCount('assets')
-            ->get()
-            ->map(fn($category) => [
-                'name' => $category->name,
-                'value' => $category->assets_count
-            ]);
+        $assetStatusData = [
+            'Tersedia' => $availableAssets + $returnedAssets, 
+            'Dipinjam' => $borrowedAssets,
+            'Rusak' => $repairedAssets, 
+        ];
 
-        $assetStatusData = Asset::select('status', DB::raw('COUNT(*) as total'))
-            ->groupBy('status')
-            ->get()
-            ->mapWithKeys(fn($item) => [$item->status => $item->total]);
-
-        $assetStatusDataLastMonth = Asset::select('status', DB::raw('COUNT(*) as total'))
+        $assetStatusDataLastMonth = Asset::select('status_id', DB::raw('COUNT(*) as total'))
             ->whereMonth('created_at', $lastMonth->month)
-            ->groupBy('status')
+            ->groupBy('status_id')
             ->get()
-            ->mapWithKeys(fn($item) => [$item->status => $item->total]);
+            ->mapWithKeys(fn($item) => [
+                $item->status->name ?? 'Unknown' => $item->total
+            ]);
 
-        $twoMonthsAgo = Carbon::now()->subMonths(2);
-        $assetStatusDataTwoMonthsAgo = Asset::select('status', DB::raw('COUNT(*) as total'))
+        $twoMonthsAgo = now()->subMonths(2);
+        $assetStatusDataTwoMonthsAgo = Asset::select('status_id', DB::raw('COUNT(*) as total'))
             ->whereMonth('created_at', $twoMonthsAgo->month)
-            ->groupBy('status')
+            ->groupBy('status_id')
             ->get()
-            ->mapWithKeys(fn($item) => [$item->status => $item->total]);
+            ->mapWithKeys(fn($item) => [
+                $item->status->name ?? 'Unknown' => $item->total
+            ]);
 
         $formattedAssetStatusData = [
             [
-                'name' => 'Tersedia',
+                'name' => 'Saat ini',
                 'available' => $assetStatusData['Tersedia'] ?? 0,
                 'borrowed' => $assetStatusData['Dipinjam'] ?? 0,
             ],
@@ -87,16 +98,21 @@ class DashboardController extends Controller
                 'availableAssets' => $availableAssets,
                 'borrowedAssets' => $borrowedAssets,
                 'myBorrowings' => $user->can('borrow asset') ? Borrowing::where('user_id', $user->id)->count() : null,
-                'pendingApprovals' => $user->can('approve borrowing') ? Borrowing::where('status', 'Pending')->count() : null,
+                'pendingApprovals' => $user->can('approve borrowing') ? Borrowing::where('status_id', $pendingStatus->id)->count() : null,
                 'totalAssetsTrend' => $totalAssetsTrend,
                 'availableAssetsTrend' => $availableAssetsTrend,
                 'borrowedAssetsTrend' => $borrowedAssetsTrend,
-                'totalBorrowingsTrend' => $totalBorrowingsTrend, 
+                'totalBorrowingsTrend' => $totalBorrowingsTrend,
             ],
-            'categoryData' => $categoryData,
+            'categoryData' => Category::withCount('assets')
+                ->get()
+                ->map(fn($category) => [
+                    'name' => $category->name,
+                    'value' => $category->assets_count,
+                ]),
             'assetStatusData' => $assetStatusData,
             'formattedAssetStatusData' => $formattedAssetStatusData,
-            'recentActivities' => $recentActivities, 
+            'recentActivities' => $recentActivities,
         ]);
     }
 

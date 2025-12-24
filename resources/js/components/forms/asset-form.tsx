@@ -1,12 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandItem,
-} from '@/components/ui/command';
+import { Command, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -16,16 +11,21 @@ import {
 } from '@/components/ui/popover';
 import { router, usePage } from '@inertiajs/react';
 import { ChevronsUpDown } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Category {
     id: number;
     name: string;
 }
 
+interface Status {
+    id: number;
+    name: string;
+}
+
 interface PageProps {
     categories: Category[];
-    conditions: string[];
+    assetStatuses: Status[];
     [key: string]: any;
 }
 
@@ -35,7 +35,8 @@ interface AssetFormProps {
         name: string;
         category_id: number;
         condition: string;
-        status: string;
+        status_id: number;
+        image_path?: string | null;
     };
     onSubmit?: (data: any) => void;
     onSuccess?: (message?: string) => void;
@@ -48,34 +49,41 @@ export default function AssetForm({
     onSuccess,
     onError,
 }: AssetFormProps) {
-    const { categories, conditions } = usePage<PageProps>().props;
+    const { categories, assetStatuses } = usePage<PageProps>().props;
 
     const [formData, setFormData] = useState({
-        name: initialData?.name || '',
-        category_id: initialData?.category_id || '',
-        condition: initialData?.condition || '',
-        status: initialData?.status || '',
+        name: initialData?.name ?? '',
+        category_id: initialData?.category_id ?? 0,
+        condition: initialData?.condition ?? '',
+        status_id: initialData?.status_id ?? 0,
+        image_path: null as File | null,
     });
+
+    const [preview, setPreview] = useState(initialData?.image_path ?? '');
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState<any>({});
 
-    const statuses = ['Tersedia', 'Dipinjam', 'Rusak'];
+    useEffect(() => {
+        if (formData.image_path instanceof File) {
+            const url = URL.createObjectURL(formData.image_path);
+            setPreview(url);
+
+            return () => URL.revokeObjectURL(url);
+        }
+    }, [formData.image_path]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (
-            !formData.name ||
-            !formData.category_id ||
-            !formData.condition ||
-            !formData.status
-        ) {
-            alert('Semua field harus diisi');
-            return;
-        }
+        const newErrors: any = {};
+        if (!formData.name) newErrors.name = 'Nama aset wajib diisi';
+        if (!formData.category_id)
+            newErrors.category_id = 'Kategori wajib diisi';
+        if (!formData.condition) newErrors.condition = 'Kondisi wajib diisi';
+        if (!formData.status_id) newErrors.status_id = 'Status wajib diisi';
 
-        if (onSubmit) {
-            onSubmit(formData);
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
             return;
         }
 
@@ -83,9 +91,19 @@ export default function AssetForm({
         setErrors({});
 
         const url = initialData?.id ? `/assets/${initialData.id}` : '/assets';
-        const method = initialData?.id ? 'put' : 'post';
 
-        router[method](url, formData, {
+        const data = new FormData();
+        data.append('name', formData.name);
+        data.append('category_id', formData.category_id.toString());
+        data.append('condition', formData.condition);
+        data.append('status_id', formData.status_id.toString());
+        if (formData.image_path instanceof File) {
+            data.append('image_path', formData.image_path);
+        }
+
+        if (initialData?.id) data.append('_method', 'PUT');
+
+        router.post(url, data, {
             preserveScroll: true,
             onSuccess: () => {
                 setProcessing(false);
@@ -105,54 +123,44 @@ export default function AssetForm({
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Nama Aset */}
-            <div className="space-y-2">
-                <Label htmlFor="nama">Nama Aset</Label>
+        <form
+            onSubmit={handleSubmit}
+            className="space-y-4"
+            encType="multipart/form-data"
+        >
+            <div>
+                <Label>Nama Aset</Label>
                 <Input
-                    id="nama"
-                    placeholder="Masukkan nama aset"
                     value={formData.name}
                     onChange={(e) =>
                         setFormData({ ...formData, name: e.target.value })
                     }
-                    className="bg-muted"
                 />
-                {errors.nama && (
-                    <span className="text-sm text-destructive">
-                        {errors.nama}
-                    </span>
+                {errors.name && (
+                    <p className="text-sm text-red-500">{errors.name}</p>
                 )}
             </div>
 
-            {/* Kategori */}
-            <div className="space-y-2">
-                <Label htmlFor="kategori">Kategori</Label>
+            <div>
+                <Label>Kategori</Label>
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button
                             variant="outline"
-                            role="combobox"
                             className="w-full justify-between"
                         >
-                            {formData.category_id
-                                ? (categories.find(
-                                      (c) => c.id === formData.category_id,
-                                  )?.name ?? 'Pilih kategori')
-                                : 'Pilih kategori'}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            {categories.find(
+                                (c) => c.id === formData.category_id,
+                            )?.name ?? 'Pilih kategori'}
+                            <ChevronsUpDown className="h-4 w-4 opacity-50" />
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
+                    <PopoverContent className="p-0">
                         <Command>
-                            <CommandEmpty>
-                                Kategori tidak ditemukan
-                            </CommandEmpty>
                             <CommandGroup>
                                 {categories.map((c) => (
                                     <CommandItem
-                                        key={c.name}
-                                        value={c.name}
+                                        key={c.id}
                                         onSelect={() =>
                                             setFormData({
                                                 ...formData,
@@ -168,44 +176,44 @@ export default function AssetForm({
                     </PopoverContent>
                 </Popover>
                 {errors.category_id && (
-                    <span className="text-sm text-destructive">
-                        {errors.category_id}
-                    </span>
+                    <p className="text-sm text-red-500">{errors.category_id}</p>
                 )}
             </div>
 
-            {/* Kondisi */}
-            <div className="space-y-2">
-                <Label htmlFor="kondisi">Kondisi</Label>
+            <div>
+                <Label>Kondisi</Label>
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button
                             variant="outline"
-                            role="combobox"
                             className="w-full justify-between"
                         >
-                            {formData.condition
-                                ? formData.condition
-                                : 'Pilih kondisi'}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            {formData.condition || 'Pilih kondisi'}
+                            <ChevronsUpDown className="h-4 w-4 opacity-50" />
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
+                    <PopoverContent className="p-0">
                         <Command>
-                            <CommandEmpty>Kondisi tidak ditemukan</CommandEmpty>
                             <CommandGroup>
-                                {conditions.map((condition) => (
+                                {[
+                                    'Baik',
+                                    'Rusak',
+                                    'Rusak Ringan',
+                                    'Rusak Berat',
+                                    'Perbaikan',
+                                    'Belum Diperbaiki',
+                                    'Belum Dikembalikan',
+                                ].map((s) => (
                                     <CommandItem
-                                        key={condition}
-                                        value={condition}
+                                        key={s}
                                         onSelect={() =>
                                             setFormData({
                                                 ...formData,
-                                                condition,
+                                                condition: s,
                                             })
                                         }
                                     >
-                                        {condition}
+                                        {s}
                                     </CommandItem>
                                 ))}
                             </CommandGroup>
@@ -213,65 +221,73 @@ export default function AssetForm({
                     </PopoverContent>
                 </Popover>
                 {errors.condition && (
-                    <span className="text-sm text-destructive">
-                        {errors.condition}
-                    </span>
+                    <p className="text-sm text-red-500">{errors.condition}</p>
                 )}
             </div>
 
-            {/* Status */}
-            <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
+            <div>
+                <Label>Status</Label>
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button
                             variant="outline"
-                            role="combobox"
                             className="w-full justify-between"
                         >
-                            {formData.status ? formData.status : 'Pilih status'}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            {assetStatuses.find(
+                                (s) => s.id === formData.status_id,
+                            )?.name ?? 'Pilih status'}
+                            <ChevronsUpDown className="h-4 w-4 opacity-50" />
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
+                    <PopoverContent className="p-0">
                         <Command>
-                            <CommandEmpty>Status tidak ditemukan</CommandEmpty>
                             <CommandGroup>
-                                {statuses.map((status) => (
+                                {assetStatuses.map((s) => (
                                     <CommandItem
-                                        key={status}
-                                        value={status}
+                                        key={s.id}
                                         onSelect={() =>
                                             setFormData({
                                                 ...formData,
-                                                status,
+                                                status_id: s.id,
                                             })
                                         }
                                     >
-                                        {status}
+                                        {s.name}
                                     </CommandItem>
                                 ))}
                             </CommandGroup>
                         </Command>
                     </PopoverContent>
                 </Popover>
-                {errors.status && (
-                    <span className="text-sm text-destructive">
-                        {errors.status}
-                    </span>
+                {errors.status_id && (
+                    <p className="text-sm text-red-500">{errors.status_id}</p>
                 )}
             </div>
 
-            {/* Submit Button */}
-            <div className="flex justify-end gap-2 pt-4">
-                <Button type="submit" className="w-full" disabled={processing}>
-                    {processing
-                        ? 'Menyimpan...'
-                        : initialData?.id
-                          ? 'Update Aset'
-                          : 'Tambah Aset'}
-                </Button>
+            <div>
+                <Label>Gambar (opsional)</Label>
+                <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) =>
+                        setFormData({
+                            ...formData,
+                            image_path: e.target.files?.[0] ?? null,
+                        })
+                    }
+                />
+                {preview && (
+                    <img
+                        src={preview}
+                        alt="Preview"
+                        className="mt-2 h-24 w-24 rounded object-cover"
+                    />
+                )}
             </div>
+
+            <Button type="submit" className="w-full" disabled={processing}>
+                {initialData ? 'Update Aset' : 'Tambah Aset'}
+            </Button>
         </form>
     );
 }

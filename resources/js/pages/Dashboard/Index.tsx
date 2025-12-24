@@ -159,7 +159,9 @@ export default function Dashboard({
                                             {status.charAt(0).toUpperCase() +
                                                 status.slice(1)}
                                         </span>
-                                        <span className="text-lg font-bold text-green-600">
+                                        <span
+                                            className={`text-lg font-bold ${status === 'Tersedia' ? 'text-green-500' : status === 'Dipinjam' ? 'text-yellow-500' : 'text-red-500'}`}
+                                        >
                                             {getAssetStatusPercentage(status)}%
                                         </span>
                                     </div>

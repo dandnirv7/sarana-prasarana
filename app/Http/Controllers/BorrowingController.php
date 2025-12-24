@@ -5,26 +5,44 @@ namespace App\Http\Controllers;
 use App\Exports\BorrowingExport;
 use App\Models\Asset;
 use App\Models\Borrowing;
+use App\Models\Status;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
-use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 
 class BorrowingController extends Controller
 {
+    private function borrowingStatus(string $name): Status
+    {
+        return Status::where('type', 'borrowing')
+            ->where('name', $name)
+            ->firstOrFail();
+    }
+
+    private function assetStatus(string $name): Status
+    {
+        return Status::where('type', 'asset')
+            ->where('name', $name)
+            ->firstOrFail();
+    }
+
     public function index(Request $request)
     {
         $borrowings = Borrowing::query()
-            ->with(['user:id,name', 'asset:id,name'])
+            ->with([
+                'user:id,name',
+                'asset:id,name,status_id',
+                'status:id,name'
+            ])
             ->when($request->search, function ($q) use ($request) {
                 $q->whereHas('asset', fn ($a) =>
                     $a->where('name', 'like', "%{$request->search}%")
                 );
             })
-            ->when($request->status, fn ($q) =>
-                $q->where('status', $request->status)
+            ->when($request->status_name, fn ($q) =>
+                $q->where('status_id', $this->borrowingStatus($request->status_name)->id)
             )
             ->latest()
             ->paginate(10)
@@ -32,22 +50,29 @@ class BorrowingController extends Controller
 
         $users = User::select('id', 'name')->get();
 
-        $assets = Asset::where('status', 'Tersedia')
+        $availableAssetStatus = $this->assetStatus('Tersedia');
+
+        $assets = Asset::where('status_id', $availableAssetStatus->id)
             ->select('id', 'name')
             ->get();
+
+        $borrowingStatuses = Status::where('type', 'borrowing')->get();
 
         return Inertia::render('borrowings/index', [
             'borrowings' => $borrowings,
             'users' => $users,
-            'assets' => $assets, 
-            'filters' => $request->only('search', 'status'),
+            'assets' => $assets,
+            'statuses' => $borrowingStatuses,
+            'filters' => $request->only('search', 'status_name'),
             'auth' => [
                 'user' => $request->user(),
-                'permissions' => $request->user()->getAllPermissions()->pluck('name')->toArray(),
+                'permissions' => $request->user()
+                    ->getAllPermissions()
+                    ->pluck('name')
+                    ->toArray(),
             ],
         ]);
     }
-
 
     public function store(Request $request)
     {
@@ -58,54 +83,70 @@ class BorrowingController extends Controller
             'return_date' => 'nullable|date|after_or_equal:borrow_date',
         ]);
 
+        $pendingStatus = $this->borrowingStatus('Menunggu');
+
         Borrowing::create([
             'user_id' => $validated['user_id'],
             'asset_id' => $validated['asset_id'],
             'borrow_date' => $validated['borrow_date'],
             'return_date' => $validated['return_date'],
-            'status' => 'Pending',
+            'status_id' => $pendingStatus->id,
         ]);
 
-        return redirect()->back()->with('success', 'Permintaan peminjaman dikirim');
+        return back()->with('success', 'Permintaan peminjaman berhasil dikirim');
     }
-
 
     public function update(Request $request, Borrowing $borrowing)
     {
         $validated = $request->validate([
-            'status' => 'required|in:Pending,Disetujui,Ditolak,Dikembalikan',
+            'status_id' => 'required|exists:statuses,id',
         ]);
 
-        if ($validated['status'] === 'Disetujui') {
-            $borrowing->asset->update(['status' => 'Dipinjam']);
+        $newStatus = Status::findOrFail($validated['status_id']);
+
+        if ($newStatus->type !== 'borrowing') {
+            abort(400, 'Status tidak valid');
         }
 
-        if ($validated['status'] === 'Ditolak') {
-            $borrowing->asset->update(['status' => 'Tersedia']);
-        }
+        switch ($newStatus->name) {
+            case 'Disetujui':
+                $borrowing->asset->update([
+                    'status_id' => $this->assetStatus('Dipinjam')->id,
+                ]);
+                break;
 
-        if ($validated['status'] === 'Dikembalikan') {
-            $borrowing->asset->update(['status' => 'Tersedia']);
-            $borrowing->update([
-                'actual_return_date' => now(),
-            ]);
+            case 'Ditolak':
+                $borrowing->asset->update([
+                    'status_id' => $this->assetStatus('Tersedia')->id,
+                ]);
+                break;
+
+            case 'Dikembalikan':
+                $borrowing->asset->update([
+                    'status_id' => $this->assetStatus('Tersedia')->id,
+                ]);
+
+                $borrowing->update([
+                    'actual_return_date' => now(),
+                ]);
+                break;
         }
 
         $borrowing->update([
-            'status' => $validated['status'],
+            'status_id' => $newStatus->id,
         ]);
 
-        return redirect()->back()->with('success', 'Status peminjaman diperbarui');
+        return back()->with('success', 'Status peminjaman berhasil diperbarui');
     }
 
-     public function approve(Borrowing $borrowing)
+    public function approve(Borrowing $borrowing)
     {
         $borrowing->update([
-            'status' => 'Disetujui',
+            'status_id' => $this->borrowingStatus('Disetujui')->id,
         ]);
 
         $borrowing->asset->update([
-            'status' => 'Dipinjam',
+            'status_id' => $this->assetStatus('Dipinjam')->id,
         ]);
 
         return back()->with('success', 'Peminjaman disetujui');
@@ -114,11 +155,11 @@ class BorrowingController extends Controller
     public function reject(Borrowing $borrowing)
     {
         $borrowing->update([
-            'status' => 'Ditolak',
+            'status_id' => $this->borrowingStatus('Ditolak')->id,
         ]);
 
         $borrowing->asset->update([
-            'status' => 'Tersedia',
+            'status_id' => $this->assetStatus('Tersedia')->id,
         ]);
 
         return back()->with('success', 'Peminjaman ditolak');
@@ -127,12 +168,12 @@ class BorrowingController extends Controller
     public function confirmReturn(Borrowing $borrowing)
     {
         $borrowing->update([
-            'status' => 'Dikembalikan',
+            'status_id' => $this->borrowingStatus('Dikembalikan')->id,
             'actual_return_date' => now(),
         ]);
 
         $borrowing->asset->update([
-            'status' => 'Tersedia',
+            'status_id' => $this->assetStatus('Tersedia')->id,
         ]);
 
         return back()->with('success', 'Aset berhasil dikembalikan');
@@ -145,7 +186,9 @@ class BorrowingController extends Controller
 
     public function exportPdf()
     {
-        $borrowings = Borrowing::all();
-        return Pdf::loadView('pdf.borrowings', compact('borrowings'))->download('data-peminjaman.pdf');
+        $borrowings = Borrowing::with(['user', 'asset', 'status'])->get();
+
+        return Pdf::loadView('pdf.borrowings', compact('borrowings'))
+            ->download('data-peminjaman.pdf');
     }
 }

@@ -15,7 +15,7 @@ class UserSeeder extends Seeder
             'name' => 'Admin Sarpras',
             'email' => 'admin@sarpras.test',
             'department' => Department::IT,
-            'password' => Hash::make('password'),
+            'password' => Hash::make('admin123'),
             'email_verified_at' => now(),
         ]);
         $admin->assignRole('Admin');
@@ -24,7 +24,7 @@ class UserSeeder extends Seeder
             'name' => 'Manager Sarpras',
             'email' => 'manager@sarpras.test',
             'department' => Department::O,
-            'password' => Hash::make('password'),
+            'password' => Hash::make('manager123'),
             'email_verified_at' => now(),
         ]);
         $manager->assignRole('Manager');
@@ -33,7 +33,7 @@ class UserSeeder extends Seeder
             'name' => 'Staff Sarpras',
             'email' => 'staff@sarpras.test',
             'department' => Department::GA,
-            'password' => Hash::make('password'),
+            'password' => Hash::make('staff123'),
             'email_verified_at' => now(),
         ]);
         $staff->assignRole('Staff');

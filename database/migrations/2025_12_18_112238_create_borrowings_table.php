@@ -18,8 +18,8 @@ return new class extends Migration
             $table->date('borrow_date');
             $table->date('return_date')->nullable();
             $table->date('actual_return_date')->nullable();
-            $table->enum('asset_condition', ['Baik', 'Rusak', 'Perbaikan'])->nullable();
-            $table->enum('status', ['Pending', 'Disetujui', 'Ditolak', 'Dikembalikan']);
+            $table->enum('asset_condition', ['Baik', 'Rusak', 'Rusak Ringan', 'Rusak Berat', 'Perbaikan', 'Belum Diperbaiki', 'Belum Dikembalikan'])->nullable();
+            $table->foreignId('status_id')->nullable()->constrained('statuses')->nullOnDelete();
             $table->timestamps();
         });    
     }

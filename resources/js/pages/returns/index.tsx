@@ -31,11 +31,17 @@ interface Asset {
     name: string;
 }
 
+interface Status {
+    id: number;
+    name: string;
+    type: 'asset' | 'borrowing';
+}
+
 interface Borrowing {
     id: number;
     borrow_date: string;
     return_date: string;
-    status: 'Pending' | 'Disetujui' | 'Dikembalikan' | 'Ditolak';
+    status: Status;
     user: User;
     asset: Asset;
 }
@@ -52,8 +58,22 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pengembalian', href: '/returns' },
 ];
 
+const statusVariant = (status: string) => {
+    switch (status) {
+        case 'Menunggu':
+            return 'warning';
+        case 'Disetujui':
+            return 'secondary';
+        case 'Ditolak':
+            return 'destructive';
+        default:
+            return 'success';
+    }
+};
+
 export default function Returns() {
-    const { returns, filters, auth } = usePage().props as any;
+    const { returns, filters, borrowingStatuses, auth } = usePage()
+        .props as any;
     const permissions = auth.permissions;
 
     const [search, setSearch] = useState(filters?.search ?? '');
@@ -70,10 +90,8 @@ export default function Returns() {
         null,
     );
 
-    const pendingReturnCount = (returns.data as AssetReturn[]).filter(
-        (p) =>
-            p.borrowing.status === 'Pending' ||
-            p.borrowing.status === 'Disetujui',
+    const pendingReturnCount = (returns.data as AssetReturn[]).filter((p) =>
+        ['Menunggu', 'Disetujui'].includes(p.borrowing.status.name),
     ).length;
 
     const applyFilter = (params: any = {}) => {
@@ -138,7 +156,7 @@ export default function Returns() {
                     </div>
                 )}
 
-                <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+                <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
                     <div className="max-w-md flex-1">
                         <Label htmlFor="search">Cari Pengembalian</Label>
                         <Input
@@ -154,56 +172,63 @@ export default function Returns() {
                             }}
                         />
                     </div>
-                    <div className="flex gap-2">
-                        <Select
-                            value={status}
-                            onValueChange={(value) => {
-                                setStatus(value);
-                                applyFilter({ status: value, page: 1 });
-                            }}
-                        >
-                            <SelectTrigger className="w-[200px]">
-                                <SelectValue placeholder="Semua Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Dikembalikan">
-                                    Dikembalikan
-                                </SelectItem>
-                                <SelectItem value="Pending">Pending</SelectItem>
-                                <SelectItem value="Disetujui">
-                                    Disetujui
-                                </SelectItem>
-                                <SelectItem value="Ditolak">Ditolak</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        {permissions.includes('manage users') && (
-                            <>
-                                <Button
-                                    variant="outline"
-                                    className="gap-2 bg-transparent"
-                                    onClick={() =>
-                                        window.open(
-                                            '/returns/export/pdf',
-                                            '_blank',
-                                        )
-                                    }
-                                >
-                                    <Download className="h-4 w-4" />
-                                    PDF
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="gap-2 bg-transparent"
-                                    onClick={() =>
-                                        (window.location.href =
-                                            '/returns/export/excel')
-                                    }
-                                >
-                                    <FileText className="h-4 w-4" />
-                                    Excel
-                                </Button>
-                            </>
-                        )}
+
+                    <div className="flex flex-col gap-2">
+                        <Label className="sr-only">Status</Label>
+                        <div className="flex gap-2">
+                            <Select
+                                value={status}
+                                onValueChange={(value) => {
+                                    setStatus(value);
+                                    applyFilter({ status: value, page: 1 });
+                                }}
+                            >
+                                <SelectTrigger className="w-[200px]">
+                                    <SelectValue placeholder="Semua Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {borrowingStatuses.map((s: Status) => (
+                                        <SelectItem
+                                            key={s.id}
+                                            value={String(s.id)}
+                                        >
+                                            {s.name === 'Disetujui'
+                                                ? 'Menunggu Pengembalian'
+                                                : s.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            {permissions.includes('manage users') && (
+                                <>
+                                    <Button
+                                        variant="outline"
+                                        className="gap-2 bg-transparent"
+                                        onClick={() =>
+                                            window.open(
+                                                '/returns/export/pdf',
+                                                '_blank',
+                                            )
+                                        }
+                                    >
+                                        <Download className="h-4 w-4" />
+                                        PDF
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="gap-2 bg-transparent"
+                                        onClick={() =>
+                                            (window.location.href =
+                                                '/returns/export/excel')
+                                        }
+                                    >
+                                        <FileText className="h-4 w-4" />
+                                        Excel
+                                    </Button>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -269,34 +294,46 @@ export default function Returns() {
                                                 <td className="px-4 py-3">
                                                     <Badge
                                                         variant={
-                                                            r.borrowing
-                                                                .status ===
+                                                            r.borrowing.status
+                                                                .name ===
                                                             'Dikembalikan'
                                                                 ? 'success'
-                                                                : 'warning'
+                                                                : [
+                                                                        'Menunggu',
+                                                                        'Disetujui',
+                                                                    ].includes(
+                                                                        r
+                                                                            .borrowing
+                                                                            .status
+                                                                            .name,
+                                                                    )
+                                                                  ? 'warning'
+                                                                  : 'default'
                                                         }
                                                     >
                                                         {[
-                                                            'Pending',
+                                                            'Menunggu',
                                                             'Disetujui',
                                                         ].includes(
-                                                            r.borrowing.status,
+                                                            r.borrowing.status
+                                                                .name,
                                                         )
-                                                            ? 'Pending Return'
-                                                            : r.borrowing
-                                                                  .status}
+                                                            ? 'Menunggu Pengembalian'
+                                                            : r.borrowing.status
+                                                                  .name}
                                                     </Badge>
                                                 </td>
+
                                                 {permissions.includes(
                                                     'return asset',
-                                                ) && (
-                                                    <td className="px-4 py-3">
-                                                        {[
-                                                            'Pending',
-                                                            'Disetujui',
-                                                        ].includes(
-                                                            r.borrowing.status,
-                                                        ) && (
+                                                ) &&
+                                                    [
+                                                        'Menunggu',
+                                                        'Disetujui',
+                                                    ].includes(
+                                                        r.borrowing.status.name,
+                                                    ) && (
+                                                        <td className="px-4 py-3">
                                                             <Button
                                                                 size="sm"
                                                                 onClick={() => {
@@ -307,15 +344,13 @@ export default function Returns() {
                                                                         true,
                                                                     );
                                                                 }}
-                                                                className="gap-1"
-                                                                aria-label={`Konfirmasi pengembalian ${r.borrowing.asset.name}`}
+                                                                className="flex items-center gap-1"
                                                             >
                                                                 <CheckCircle className="h-4 w-4" />
                                                                 Konfirmasi
                                                             </Button>
-                                                        )}
-                                                    </td>
-                                                )}
+                                                        </td>
+                                                    )}
                                             </tr>
                                         ))
                                     )}
