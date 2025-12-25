@@ -35,8 +35,10 @@ class ReportController extends Controller
 
         $borrowings = (clone $baseQuery)
             ->latest()
+            ->with(['user:id,name', 'asset:id,name', 'status:id,name'])  
             ->paginate(10)
             ->withQueryString();
+
 
         $stats = [
             'total' => (clone $baseQuery)->count(),

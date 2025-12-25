@@ -15,21 +15,29 @@ class AssetController extends Controller
 {
     public function index(Request $request)
     {
-        $returnedStatus = Status::where('name', 'Dikembalikan')->first();
-        $repairingStatus = Status::where('name', 'Perbaikan')->first();
+        
+        $filters = [
+            'search'   => $request->search ? strtolower($request->search) : null,
+            'kategori' => $request->kategori ? strtolower($request->kategori) : null,
+            'status'   => $request->status ? strtolower($request->status) : null,
+        ];
 
         $assets = Asset::with(['category', 'status'])
-            ->when($request->search, fn($q) =>
-                $q->where('name', 'like', "%{$request->search}%")
+            ->when($filters['search'], fn($q) => 
+                $q->whereRaw('LOWER(name) like ?', ["%{$filters['search']}%"])
             )
-            ->when($request->category_id, fn($q) =>
-                $q->where('category_id', $request->category_id)
+            ->when($filters['kategori'], fn($q, $categoryName) =>
+                $q->whereHas('category', fn($q2) => 
+                    $q2->whereRaw('LOWER(name) = ?', [$categoryName])
+                )
             )
-            ->when($request->status_id, fn($q) =>
-                $q->where('status_id', $request->status_id)
+            ->when($filters['status'], fn($q, $statusName) =>
+                $q->whereHas('status', fn($q2) => 
+                    $q2->whereRaw('LOWER(name) = ?', [$statusName])
+                )
             )
             ->paginate(10)
-            ->withQueryString()
+            ->withQueryString() 
             ->through(fn($asset) => [
                 'id' => $asset->id,
                 'name' => $asset->name,
@@ -41,25 +49,20 @@ class AssetController extends Controller
                 'image' => $asset->image_path ? asset('storage/' . $asset->image_path) : '/placeholder.svg',
             ]);
 
-        return Inertia::render('assets/index', [
+        return Inertia::render('data-assets/index', [
             'assets' => $assets,
-            'filters' => $request->only('search', 'category_id', 'status_id'),
+            'filters' => $filters, 
             'categories' => Category::all(['id', 'name']),
             'assetStatuses' => Status::where('type', 'asset')->get(['id', 'name']),
         ]);
     }
 
-    private function adjustAssetStatus($statusName)
+    private function adjustAssetStatus(string $statusName): string
     {
-        if ($statusName === 'Dikembalikan') {
-            return 'Tersedia';
-        }
-        if ($statusName === 'Perbaikan') {
-            return 'Rusak';
-        }
+        if ($statusName === 'Dikembalikan') return 'Tersedia';
+        if ($statusName === 'Perbaikan') return 'Rusak';
         return $statusName;
     }
-
 
     public function store(Request $request)
     {

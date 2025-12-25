@@ -33,12 +33,17 @@ interface Asset {
     name: string;
 }
 
+interface Status {
+    id: number;
+    name: string;
+}
+
 interface Borrowing {
     id: number;
     borrow_date: string;
     return_date: string | null;
     asset_condition: 'Sesuai' | 'Rusak' | 'Hilang';
-    status: string;
+    status: Status;
     user: User;
     asset: Asset;
 }
@@ -77,6 +82,8 @@ export default function Reports({ borrowings, stats, filters }: ReportsProps) {
     const [startDate, setStartDate] = useState(filters.start_date);
     const [endDate, setEndDate] = useState(filters.end_date);
     const [status, setStatus] = useState(filters.status ?? 'all');
+
+    console.log(borrowings.data);
 
     const [dateStart, setDateStart] = useState<Date | undefined>(
         filters.start_date ? new Date(filters.start_date) : undefined,
@@ -394,16 +401,17 @@ export default function Reports({ borrowings, stats, filters }: ReportsProps) {
                                             <td className="px-4 py-2">
                                                 <Badge
                                                     variant={
-                                                        item.status ===
+                                                        item.status.name ===
                                                         'Disetujui'
                                                             ? 'success'
-                                                            : item.status ===
+                                                            : item.status
+                                                                    .name ===
                                                                 'Pending'
                                                               ? 'warning'
                                                               : 'destructive'
                                                     }
                                                 >
-                                                    {item.status}
+                                                    {item.status.name}
                                                 </Badge>
                                             </td>
                                         </tr>

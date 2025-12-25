@@ -25,9 +25,21 @@ export function AppSidebar() {
 
     const permissions: string[] = auth.permissions ?? [];
 
-    const visibleItems = sidebarItems.filter((item) =>
-        can(permissions, item.permission),
-    );
+    const visibleItems = sidebarItems.filter((item) => {
+        const hasPermission = item.permission
+            ? can(permissions, item.permission)
+            : true;
+
+        if (item.items) {
+            item.items = item.items.filter((subItem) => {
+                return subItem.permission
+                    ? can(permissions, subItem.permission)
+                    : true;
+            });
+        }
+
+        return hasPermission;
+    });
 
     const isActive = (href: string) => {
         if (href === '/dashboard') {

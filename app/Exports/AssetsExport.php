@@ -11,13 +11,14 @@ class AssetsExport implements FromCollection, WithHeadings
 {
     public function collection(): Collection
     {
-        return Asset::with('category') 
-            ->get() 
+        return Asset::with(['category', 'status']) 
+        ->orderBy('name','asc')
+            ->get()
             ->map(fn ($asset) => [
                 'Nama'     => $asset->name,
                 'Kategori' => $asset->category->name ?? '-', 
                 'Kondisi'  => $asset->condition,
-                'Status'   => $asset->status,
+                'Status'   => $asset->status->name ?? '-',                 
             ]);
     }
 

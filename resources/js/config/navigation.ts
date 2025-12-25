@@ -29,7 +29,7 @@ export const sidebarItems: SidebarItem[] = [
     },
     {
         title: 'Data Aset',
-        href: '/assets',
+        href: '/asset',
         icon: Package,
         permission: 'manage assets',
     },
@@ -75,11 +75,13 @@ export const sidebarItems: SidebarItem[] = [
                 title: 'Kategori Aset',
                 href: '/settings/categories',
                 icon: List,
+                permission: 'manage categories',
             },
             {
                 title: 'Status',
                 href: '/settings/statuses',
                 icon: Tag,
+                permission: 'manage statuses',
             },
         ],
     },

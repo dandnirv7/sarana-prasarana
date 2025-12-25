@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('statuses', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->enum('type', ['asset', 'borrowing']);
+            $table->enum('type', ['asset', 'borrowing', 'return']);
             $table->string('description')->nullable();
             $table->timestamps();
         });

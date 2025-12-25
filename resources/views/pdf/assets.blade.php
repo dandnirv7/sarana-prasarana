@@ -26,9 +26,9 @@
             @foreach($assets as $asset)
                 <tr>
                     <td>{{ $asset->name }}</td>
-                    <td>{{ $asset->category_name }}</td>
+                    <td>{{ $asset->category->name ?? $asset->category_name }}</td>
                     <td>{{ $asset->condition }}</td>
-                    <td>{{ $asset->status }}</td>
+                    <td>{{ $asset->status->name ?? $asset->status_name }}</td>
                 </tr>
             @endforeach
         </tbody>

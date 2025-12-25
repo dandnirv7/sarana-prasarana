@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('borrowing_id')->constrained()->cascadeOnDelete();
             $table->date('return_date_actual');
-            $table->enum('asset_condition', ['Baik', 'Rusak', 'Perbaikan']);
+            $table->enum('asset_condition', ['Baik', 'Rusak', 'Rusak Ringan', 'Rusak Berat', 'Perbaikan', 'Belum Diperbaiki', 'Belum Dikembalikan']);
             $table->text('note')->nullable();
             $table->timestamps();
         });

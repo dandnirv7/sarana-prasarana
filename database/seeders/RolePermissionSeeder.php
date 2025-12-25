@@ -19,6 +19,7 @@ class RolePermissionSeeder extends Seeder
             'approve borrowing',
             'return asset',
             'view reports',
+            'manage statuses',
         ];
 
         foreach ($permissions as $permission) {

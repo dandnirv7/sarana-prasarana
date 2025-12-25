@@ -4,73 +4,49 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Models\Borrowing;
-use App\Models\AssetReturn;
+use App\Models\Status;
 
 class StatusController extends Controller
 {
-
     public function index()
     {
         return Inertia::render('settings/statuses', [
-            'borrowingStatuses' => [
-                [
-                    'id' => 1,
-                    'name' => 'Pending',
-                    'color' => 'secondary',
-                    'description' => 'Menunggu persetujuan admin',
-                ],
-                [
-                    'id' => 2,
-                    'name' => 'Approved',
-                    'color' => 'success',
-                    'description' => 'Peminjaman telah disetujui',
-                ],
-                [
-                    'id' => 3,
-                    'name' => 'Rejected',
-                    'color' => 'destructive',
-                    'description' => 'Peminjaman ditolak',
-                ],
-            ],
-            'returnStatuses' => [
-                [
-                    'id' => 1,
-                    'name' => 'Waiting',
-                    'color' => 'secondary',
-                    'description' => 'Menunggu pengembalian aset',
-                ],
-                [
-                    'id' => 2,
-                    'name' => 'Completed',
-                    'color' => 'success',
-                    'description' => 'Aset telah dikembalikan',
-                ],
-            ],
+            'borrowingStatuses' => Status::where('type', 'borrowing')->get(),
+            'assetStatuses' => Status::where('type', 'asset')->get(),
         ]);
     }
 
-    public function updateBorrowing(Request $request, $id)
+    public function store(Request $request)
     {
         $validated = $request->validate([
-            'status' => 'required|string',
+            'name' => 'required|string|max:255',
+            'type' => 'required|in:borrowing,asset',
+            'description' => 'nullable|string',
         ]);
 
-        $borrowing = Borrowing::findOrFail($id);
-        $borrowing->update($validated);
+        Status::create($validated);
 
-        return back()->with('success', 'Status borrowing berhasil diperbarui');
+        return redirect()->route('statuses.index')->with('success', 'Status added successfully!');
     }
 
-    public function updateAssetReturn(Request $request, $id)
+    public function update(Request $request, $id)
     {
         $validated = $request->validate([
-            'status' => 'required|string',
+            'name' => 'required|string|max:255',
+            'type' => 'required|in:borrowing,asset',
+            'description' => 'nullable|string',
         ]);
 
-        $assetReturn = AssetReturn::findOrFail($id);
-        $assetReturn->update($validated);
+        $status = Status::findOrFail($id);
+        $status->update($validated);
 
-        return back()->with('success', 'Status return berhasil diperbarui');
+        return redirect()->route('statuses.index')->with('success', 'Status updated successfully!');    }
+
+    public function destroy($id)
+    {
+        $status = Status::findOrFail($id);
+        $status->delete();
+
+        return redirect()->route('statuses.index')->with('success', 'Status deleted successfully!');
     }
 }
