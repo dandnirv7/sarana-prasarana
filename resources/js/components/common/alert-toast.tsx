@@ -25,7 +25,7 @@ export default function AlertToast({ type, message, duration = 3000, onClose }: 
 
   return (
     <div
-      className={`fixed bottom-4 right-4 max-w-sm p-4 rounded-lg border flex items-start gap-3 animate-in fade-in slide-in-from-bottom-4 ${
+      className={`fixed bottom-4 right-4 max-w-sm p-4 rounded-lg border flex items-start gap-3 animate-in fade-in slide-in-from-bottom-4 z-[99] ${
         type === "success"
           ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
           : "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"
@@ -47,7 +47,7 @@ export default function AlertToast({ type, message, duration = 3000, onClose }: 
       </div>
       <button
         onClick={() => setIsVisible(false)}
-        className="text-muted-foreground hover:text-foreground transition-colors"
+        className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
       >
         <X className="w-4 h-4" />
       </button>

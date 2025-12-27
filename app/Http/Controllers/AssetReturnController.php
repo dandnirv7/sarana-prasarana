@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\AssetReturn;
@@ -9,6 +8,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ReturnsExport;
+use App\Models\Asset;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -21,66 +21,86 @@ class AssetReturnController extends Controller
             ->value('id');
     }
 
+    private function pendingReturnCount(): int
+    {
+        return AssetReturn::whereHas('borrowing.status', function ($query) {
+            $query->whereIn('name', ['Disetujui', 'Menunggu Pengembalian']);
+        })->count();
+    }
 
 
     public function index(Request $request)
     {
-        $query = AssetReturn::with([
-            'borrowing.user',
-            'borrowing.asset',
-            'borrowing.status'
-        ])
-        ->whereHas('borrowing.status', function ($q) {
-            $q->whereIn('name', ['Disetujui', 'Dikembalikan']);
-        })
-        ->latest();
+        $filters = [
+            'search' => $request->search ? strtolower($request->search) : null,
+            'status' => $request->status ? strtolower($request->status) : null,
+        ];
 
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->whereHas('borrowing.user', fn ($q2) =>
-                    $q2->where('name', 'like', "%{$search}%")
-                )->orWhereHas('borrowing.asset', fn ($q2) =>
-                    $q2->where('name', 'like', "%{$search}%")
-                );
-            });
-        }
+        $returns = AssetReturn::query()
+            ->with(['borrowing.user', 'borrowing.asset', 'borrowing.status'])
+            ->when($filters['search'], function ($q, $search) {
+                $q->where(function ($query) use ($search) {
+                    $query->whereHas('borrowing.user', fn($u) => $u->whereRaw('LOWER(name) like ?', ["%{$search}%"]));
+                    $query->orWhereHas('borrowing.asset', fn($a) => $a->whereRaw('LOWER(name) like ?', ["%{$search}%"]));
+                });
+            })
+            ->when($filters['status'], function ($q, $statusName) {
+                if (strtolower($statusName) == 'menunggu pengembalian') {
+                    $q->whereHas('borrowing.status', fn($s) => $s->whereIn('name', ['Disetujui']));
+                } else {
+                    $q->whereHas('borrowing.status', fn($s) => $s->whereRaw('LOWER(name) = ?', [$statusName]));
+                }
+            })
+            ->whereHas('borrowing.status', function ($query) {
+                $query->whereIn('name', ['Disetujui', 'Dikembalikan']);
+            })
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
 
-        if ($condition = $request->input('condition')) {
-            $query->where('asset_condition', $condition);
-        }
-
-        if ($statusId = $request->input('status')) {
-            $query->whereHas('borrowing', fn ($q) =>
-                $q->where('status_id', $statusId)
-            );
-        }
+        $returns->getCollection()->transform(function ($return) {
+            if ($return->borrowing->status->name == 'Disetujui') {
+                $return->borrowing->status->name = 'Menunggu Pengembalian';
+            }
+            return $return;
+        });
 
         $borrowingStatuses = Status::where('type', 'borrowing')
+            ->whereIn('name', ['Disetujui', 'Dikembalikan'])
             ->select('id', 'name')
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->map(function ($status) {
+                if ($status->name == 'Disetujui') {
+                    $status->name = 'Menunggu Pengembalian';
+                }
+                return $status;
+            });
+
+        $users = User::select('id', 'name')->get();
 
         return Inertia::render('returns/index', [
-            'returns' => $query->paginate(10)->withQueryString(),
-            'users' => User::select('id', 'name')->get(),
+            'returns' => $returns,
+            'users' => $users,
             'borrowingStatuses' => $borrowingStatuses,
-            'filters' => $request->only(['search', 'status', 'condition']),
+            'pendingReturnCount' => $this->pendingReturnCount(),
+            'filters' => $filters,
             'auth' => [
                 'user' => $request->user(),
-                'permissions' => $request->user()
-                    ->getAllPermissions()
-                    ->pluck('name'),
+                'permissions' => $request->user()->getAllPermissions()->pluck('name')->toArray(),
             ],
         ]);
     }
-
-
 
     public function store(Request $request, Borrowing $borrowing)
     {
         $request->validate([
             'asset_condition' => 'required|in:Baik,Rusak,Perbaikan',
             'note' => 'nullable|string',
+        ],[
+            'asset_condition.required' => 'Kondisi aset harus diisi.',
+            'asset_condition.in' => 'Kondisi aset tidak valid.',
+            'note.string' => 'Catatan harus berupa string.',
         ]);
 
         AssetReturn::create([
@@ -91,7 +111,7 @@ class AssetReturnController extends Controller
         ]);
 
         $borrowing->update([
-            'status_id' => $this->getStatusId('Dikembalikan', 'borrowing'),
+            'status_id' => $this->getStatusId('Disetujui', 'borrowing'), 
             'actual_return_date' => now(),
         ]);
 
@@ -111,6 +131,10 @@ class AssetReturnController extends Controller
         $request->validate([
             'asset_condition' => 'required|in:Baik,Rusak,Perbaikan',
             'note' => 'nullable|string',
+        ],[
+            'asset_condition.required' => 'Kondisi aset harus diisi.',
+            'asset_condition.in' => 'Kondisi aset tidak valid.',
+            'note.string' => 'Catatan harus berupa string.',
         ]);
 
         $assetReturn->update([
@@ -119,7 +143,7 @@ class AssetReturnController extends Controller
         ]);
 
         $assetReturn->borrowing->update([
-            'status_id' => $this->getStatusId('Dikembalikan', 'borrowing'),
+            'status_id' => $this->getStatusId('Disetujui', 'borrowing'),
             'actual_return_date' => now(),
         ]);
 
@@ -131,6 +155,7 @@ class AssetReturnController extends Controller
 
         return back()->with('success', 'Aset berhasil dikembalikan');
     }
+
 
     public function exportExcel()
     {

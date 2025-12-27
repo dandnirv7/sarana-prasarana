@@ -11,13 +11,14 @@ class BorrowingExport implements FromCollection, WithHeadings
 {
     public function collection(): Collection
     {
-        return Borrowing::with('user') 
+        return Borrowing::with('user', 'status') 
             ->get() 
             ->map(fn ($borrowing) => [
                 'Nama'     => $borrowing->user->name,
                 'Aset' => $borrowing->asset->name ?? '-', 
                 'Tanggal Peminjaman'  => $borrowing->borrow_date,
                 'Tanggal Pengembalian'   => $borrowing->return_date,
+                'Status'    => $borrowing->status->name,
             ]);
     }
 
@@ -28,6 +29,7 @@ class BorrowingExport implements FromCollection, WithHeadings
             'Aset',
             'Tanggal Peminjaman',
             'Tanggal Pengembalian',
+            'Status',
         ];
     }
 }

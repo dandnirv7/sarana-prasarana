@@ -30,46 +30,42 @@ class BorrowingController extends Controller
 
     public function index(Request $request)
     {
+        $filters = [
+            'search' => $request->search ? strtolower($request->search) : null,
+            'status' => $request->status ? strtolower($request->status) : null,
+        ];
+
         $borrowings = Borrowing::query()
-            ->with([
-                'user:id,name',
-                'asset:id,name,status_id',
-                'status:id,name'
-            ])
-            ->when($request->search, function ($q) use ($request) {
-                $q->whereHas('asset', fn ($a) =>
-                    $a->where('name', 'like', "%{$request->search}%")
-                );
+            ->with(['user:id,name','asset:id,name,status_id','status:id,name'])
+            ->when($filters['search'], function ($q, $search) {
+                $q->where(function ($query) use ($search) {
+                    $query->whereHas('asset', fn($a) => $a->whereRaw('LOWER(name) like ?', ["%{$search}%"]))
+                          ->orWhereHas('user', fn($u) => $u->whereRaw('LOWER(name) like ?', ["%{$search}%"]));
+                });
             })
-            ->when($request->status_name, fn ($q) =>
-                $q->where('status_id', $this->borrowingStatus($request->status_name)->id)
+            ->when($filters['status'], fn($q,$statusName) =>
+                $q->whereHas('status', fn($s) => $s->whereRaw('LOWER(name) = ?', [$statusName]))
             )
             ->latest()
             ->paginate(10)
             ->withQueryString();
 
-        $users = User::select('id', 'name')->get();
+        $users = User::select('id','name')->get();
 
         $availableAssetStatus = $this->assetStatus('Tersedia');
+        $assets = Asset::where('status_id',$availableAssetStatus->id)->select('id','name')->get();
 
-        $assets = Asset::where('status_id', $availableAssetStatus->id)
-            ->select('id', 'name')
-            ->get();
-
-        $borrowingStatuses = Status::where('type', 'borrowing')->get();
+        $borrowingStatuses = Status::where('type','borrowing')->get();
 
         return Inertia::render('borrowings/index', [
             'borrowings' => $borrowings,
             'users' => $users,
             'assets' => $assets,
             'statuses' => $borrowingStatuses,
-            'filters' => $request->only('search', 'status_name'),
+            'filters' => $filters,
             'auth' => [
                 'user' => $request->user(),
-                'permissions' => $request->user()
-                    ->getAllPermissions()
-                    ->pluck('name')
-                    ->toArray(),
+                'permissions' => $request->user()->getAllPermissions()->pluck('name')->toArray(),
             ],
         ]);
     }
@@ -81,6 +77,15 @@ class BorrowingController extends Controller
             'asset_id' => 'required|exists:assets,id',
             'borrow_date' => 'required|date',
             'return_date' => 'nullable|date|after_or_equal:borrow_date',
+        ], [
+            'user_id.required' => 'User wajib dipilih',
+            'user_id.exists' => 'User tidak valid',
+            'asset_id.required' => 'Aset wajib dipilih',
+            'asset_id.exists' => 'Aset tidak valid',
+            'borrow_date.required' => 'Tanggal pinjam wajib diisi',
+            'borrow_date.date' => 'Tanggal pinjam tidak valid',
+            'return_date.date' => 'Tanggal kembali tidak valid',
+            'return_date.after_or_equal' => 'Tanggal kembali harus sama atau setelah tanggal pinjam',
         ]);
 
         $pendingStatus = $this->borrowingStatus('Menunggu');
@@ -100,6 +105,9 @@ class BorrowingController extends Controller
     {
         $validated = $request->validate([
             'status_id' => 'required|exists:statuses,id',
+        ], [
+            'status_id.required' => 'Status wajib dipilih',
+            'status_id.exists' => 'Status tidak valid',
         ]);
 
         $newStatus = Status::findOrFail($validated['status_id']);
@@ -114,27 +122,22 @@ class BorrowingController extends Controller
                     'status_id' => $this->assetStatus('Dipinjam')->id,
                 ]);
                 break;
-
             case 'Ditolak':
                 $borrowing->asset->update([
                     'status_id' => $this->assetStatus('Tersedia')->id,
                 ]);
                 break;
-
             case 'Dikembalikan':
                 $borrowing->asset->update([
                     'status_id' => $this->assetStatus('Tersedia')->id,
                 ]);
-
                 $borrowing->update([
                     'actual_return_date' => now(),
                 ]);
                 break;
         }
 
-        $borrowing->update([
-            'status_id' => $newStatus->id,
-        ]);
+        $borrowing->update(['status_id' => $newStatus->id]);
 
         return back()->with('success', 'Status peminjaman berhasil diperbarui');
     }
@@ -144,7 +147,6 @@ class BorrowingController extends Controller
         $borrowing->update([
             'status_id' => $this->borrowingStatus('Disetujui')->id,
         ]);
-
         $borrowing->asset->update([
             'status_id' => $this->assetStatus('Dipinjam')->id,
         ]);
@@ -157,7 +159,6 @@ class BorrowingController extends Controller
         $borrowing->update([
             'status_id' => $this->borrowingStatus('Ditolak')->id,
         ]);
-
         $borrowing->asset->update([
             'status_id' => $this->assetStatus('Tersedia')->id,
         ]);
@@ -171,7 +172,6 @@ class BorrowingController extends Controller
             'status_id' => $this->borrowingStatus('Dikembalikan')->id,
             'actual_return_date' => now(),
         ]);
-
         $borrowing->asset->update([
             'status_id' => $this->assetStatus('Tersedia')->id,
         ]);
@@ -186,7 +186,7 @@ class BorrowingController extends Controller
 
     public function exportPdf()
     {
-        $borrowings = Borrowing::with(['user', 'asset', 'status'])->get();
+        $borrowings = Borrowing::with(['user','asset','status'])->get();
 
         return Pdf::loadView('pdf.borrowings', compact('borrowings'))
             ->download('data-peminjaman.pdf');

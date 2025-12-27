@@ -22,32 +22,34 @@ class AssetController extends Controller
             'status'   => $request->status ? strtolower($request->status) : null,
         ];
 
-        $assets = Asset::with(['category', 'status'])
-            ->when($filters['search'], fn($q) => 
-                $q->whereRaw('LOWER(name) like ?', ["%{$filters['search']}%"])
+    $assets = Asset::with(['category:id,name', 'status:id,name'])
+        ->when($filters['search'], fn($q) => 
+            $q->whereRaw('LOWER(name) like ?', ["%{$filters['search']}%"])
+        )
+        ->when($filters['kategori'], fn($q, $categoryName) =>
+            $q->whereHas('category', fn($q2) => 
+                $q2->whereRaw('LOWER(name) = ?', [$categoryName])
             )
-            ->when($filters['kategori'], fn($q, $categoryName) =>
-                $q->whereHas('category', fn($q2) => 
-                    $q2->whereRaw('LOWER(name) = ?', [$categoryName])
-                )
+        )
+        ->when($filters['status'], fn($q, $statusName) =>
+            $q->whereHas('status', fn($q2) => 
+                $q2->whereRaw('LOWER(name) = ?', [$statusName])
             )
-            ->when($filters['status'], fn($q, $statusName) =>
-                $q->whereHas('status', fn($q2) => 
-                    $q2->whereRaw('LOWER(name) = ?', [$statusName])
-                )
-            )
-            ->paginate(10)
-            ->withQueryString() 
-            ->through(fn($asset) => [
-                'id' => $asset->id,
-                'name' => $asset->name,
-                'category_id' => $asset->category_id,
-                'category_name' => $asset->category->name ?? '-',
-                'condition' => $asset->condition,
-                'status_id' => $asset->status_id,
-                'status_name' => $this->adjustAssetStatus($asset->status->name ?? '-'),
-                'image' => $asset->image_path ? asset('storage/' . $asset->image_path) : '/placeholder.svg',
-            ]);
+        )
+        ->orderByDesc('created_at')
+        ->paginate(10)
+        ->withQueryString() 
+        ->through(fn($asset) => [
+            'id' => $asset->id,
+            'name' => $asset->name,
+            'category_id' => $asset->category_id,
+            'category_name' => $asset->category->name ?? '-',
+            'condition' => $asset->condition,
+            'status_id' => $asset->status_id,
+            'status_name' => $this->adjustAssetStatus($asset->status->name ?? '-'),
+            'image' => $asset->image_path ? asset('storage/' . $asset->image_path) : '/placeholder.svg',
+        ]);
+
 
         return Inertia::render('data-assets/index', [
             'assets' => $assets,
@@ -91,6 +93,17 @@ class AssetController extends Controller
             'condition' => 'required|string|max:255',
             'status_id' => 'required|exists:statuses,id',
             'image_path' => 'nullable|image|max:2048',
+        ],[
+            'name.required' => 'Nama wajib diisi',
+            'name.max' => 'Nama maksimal 255 karakter',
+            'category_id.required' => 'Kategori wajib dipilih',
+            'category_id.exists' => 'Kategori tidak valid',
+            'condition.required' => 'Kondisi wajib diisi',
+            'condition.max' => 'Kondisi maksimal 255 karakter',
+            'status_id.required' => 'Status wajib dipilih',
+            'status_id.exists' => 'Status tidak valid',
+            'image_path.image' => 'File harus berupa gambar',
+            'image_path.max' => 'File maksimal 2MB',
         ]);
 
         if ($request->hasFile('image_path')) {

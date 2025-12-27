@@ -34,11 +34,10 @@ export default function DoubleConfirmationModal({
 
     const handleSecondConfirm = () => {
         onConfirm();
-        setStep('first');
+        onCancel()
     };
 
     const handleClose = () => {
-        setStep('first');
         onCancel();
     };
 

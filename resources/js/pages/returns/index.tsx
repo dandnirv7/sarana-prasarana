@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { CheckCircle, Download, FileText } from 'lucide-react';
 import { useState } from 'react';
 
@@ -18,6 +18,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useInertiaFilter } from '@/hooks/use-inertia-filter';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 
@@ -54,67 +55,61 @@ interface AssetReturn {
     borrowing: Borrowing;
 }
 
+interface Filter {
+    search: string;
+    status: string;
+    page?: number;
+}
+
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pengembalian', href: '/returns' },
 ];
 
-const statusVariant = (status: string) => {
-    switch (status) {
-        case 'Menunggu':
-            return 'warning';
-        case 'Disetujui':
-            return 'secondary';
-        case 'Ditolak':
-            return 'destructive';
-        default:
-            return 'success';
-    }
-};
-
 export default function Returns() {
-    const { returns, filters, borrowingStatuses, auth } = usePage()
+    const { returns, borrowingStatuses, auth, pendingReturnCount } = usePage()
         .props as any;
     const permissions = auth.permissions;
 
-    const [search, setSearch] = useState(filters?.search ?? '');
-    const [status, setStatus] = useState(filters?.status ?? '');
     const [alert, setAlert] = useState<{
         type: 'success' | 'error';
         message: string;
     } | null>(null);
+    
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<AssetReturn | null>(null);
-    const [kondisiAset, setKondisiAset] = useState('');
-    const [catatan, setCatatan] = useState('');
+    const createForm = useForm({
+        'asset_condition': '',
+        'note': '',
+    })
+
     const [returnConfirm, setReturnConfirm] = useState<AssetReturn | null>(
         null,
     );
 
-    const pendingReturnCount = (returns.data as AssetReturn[]).filter((p) =>
-        ['Menunggu', 'Disetujui'].includes(p.borrowing.status.name),
-    ).length;
+    console.log('halo')
 
-    const applyFilter = (params: any = {}) => {
-        router.get(
-            '/returns',
-            { search, status, ...params },
-            { preserveState: true, replace: true },
-        );
-    };
+    const { filters: filterState, setFilters, apply } = useInertiaFilter<Filter>(
+        '/returns',
+        {
+            search: '',
+            status: 'all',
+        },
+    );
+
 
     const handleSubmitReturn = () => {
         if (!selectedItem) {
             setAlert({
                 type: 'error',
-                message: 'No item selected. Please try again.',
+                message: 'Tidak ada item yang dipilih, silahkan pilih item terlebih dahulu.',
             });
             return;
         }
 
-        if (!kondisiAset) {
+        if (!createForm.data.asset_condition) {
             setAlert({
                 type: 'error',
-                message: 'Please select a condition for the asset.',
+                message: 'Silahkan pilih kondisi aset.',
             });
             return;
         }
@@ -122,8 +117,8 @@ export default function Returns() {
         router.patch(
             `/returns/${selectedItem.id}/return`,
             {
-                asset_condition: kondisiAset,
-                note: catatan,
+                asset_condition: createForm.data.asset_condition,
+                note: createForm.data.note,
             },
             {
                 onSuccess: () => {
@@ -162,14 +157,8 @@ export default function Returns() {
                         <Input
                             id="search"
                             placeholder="Cari peminjam atau aset..."
-                            value={search}
-                            onChange={(e) => {
-                                setSearch(e.target.value);
-                                applyFilter({
-                                    search: e.target.value,
-                                    page: 1,
-                                });
-                            }}
+                            value={filterState.search}
+                            onChange={(e) => setFilters({ ...filterState, search: e.target.value })}
                         />
                     </div>
 
@@ -177,24 +166,21 @@ export default function Returns() {
                         <Label className="sr-only">Status</Label>
                         <div className="flex gap-2">
                             <Select
-                                value={status}
-                                onValueChange={(value) => {
-                                    setStatus(value);
-                                    applyFilter({ status: value, page: 1 });
-                                }}
+                                value={filterState.status}
+                                onValueChange={(value) => setFilters({ ...filterState, status: value === 'all' ? '' : value.toLowerCase() })}
                             >
                                 <SelectTrigger className="w-[200px]">
                                     <SelectValue placeholder="Semua Status" />
                                 </SelectTrigger>
                                 <SelectContent>
+                                    <SelectItem value="all" disabled={filterState.status === 'all'}>Semua Status</SelectItem>
                                     {borrowingStatuses.map((s: Status) => (
                                         <SelectItem
                                             key={s.id}
-                                            value={String(s.id)}
+                                            value={s.name.toLowerCase()}
+                                            disabled={filterState.status === s.name.toLowerCase()}
                                         >
-                                            {s.name === 'Disetujui'
-                                                ? 'Menunggu Pengembalian'
-                                                : s.name}
+                                            {s.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -298,41 +284,20 @@ export default function Returns() {
                                                                 .name ===
                                                             'Dikembalikan'
                                                                 ? 'success'
-                                                                : [
-                                                                        'Menunggu',
-                                                                        'Disetujui',
-                                                                    ].includes(
-                                                                        r
-                                                                            .borrowing
-                                                                            .status
-                                                                            .name,
-                                                                    )
+                                                                : r.borrowing.status.name === 'Menunggu Pengembalian'
                                                                   ? 'warning'
                                                                   : 'default'
                                                         }
                                                     >
-                                                        {[
-                                                            'Menunggu',
-                                                            'Disetujui',
-                                                        ].includes(
-                                                            r.borrowing.status
-                                                                .name,
-                                                        )
-                                                            ? 'Menunggu Pengembalian'
-                                                            : r.borrowing.status
-                                                                  .name}
+                                                        {r.borrowing.status.name}
                                                     </Badge>
                                                 </td>
 
                                                 {permissions.includes(
                                                     'return asset',
                                                 ) &&
-                                                    [
-                                                        'Menunggu',
-                                                        'Disetujui',
-                                                    ].includes(
-                                                        r.borrowing.status.name,
-                                                    ) && (
+                                                    r.borrowing.status.name ===
+                                                    'Menunggu Pengembalian' && (
                                                         <td className="px-4 py-3">
                                                             <Button
                                                                 size="sm"
@@ -360,7 +325,7 @@ export default function Returns() {
                         <Pagination
                             currentPage={returns.current_page}
                             totalPages={returns.last_page}
-                            onPageChange={(page) => applyFilter({ page })}
+                            onPageChange={(page) => apply({ page })}
                         />
                     </CardContent>
                 </Card>
@@ -383,8 +348,8 @@ export default function Returns() {
                             <div>
                                 <Label>Kondisi Aset</Label>
                                 <Select
-                                    value={kondisiAset}
-                                    onValueChange={setKondisiAset}
+                                    value={createForm.data.asset_condition}
+                                    onValueChange={(value) => createForm.setData('asset_condition', value)}
                                 >
                                     <SelectTrigger className="w-full">
                                         <SelectValue placeholder="Pilih kondisi aset" />
@@ -405,8 +370,8 @@ export default function Returns() {
                             <div>
                                 <Label>Catatan</Label>
                                 <textarea
-                                    value={catatan}
-                                    onChange={(e) => setCatatan(e.target.value)}
+                                    value={createForm.data.note}
+                                    onChange={(e) => createForm.setData('note', e.target.value)}
                                     className="w-full rounded border px-3 py-2"
                                     placeholder="Masukkan catatan (opsional)"
                                 />
@@ -420,7 +385,7 @@ export default function Returns() {
                                 </Button>
                                 <Button
                                     onClick={handleSubmitReturn}
-                                    disabled={!kondisiAset}
+                                    disabled={!createForm.data.asset_condition}
                                 >
                                     Konfirmasi
                                 </Button>

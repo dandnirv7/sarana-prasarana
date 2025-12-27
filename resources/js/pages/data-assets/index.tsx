@@ -35,8 +35,10 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { can } from '@/lib/permission';
 import { BreadcrumbItem } from '@/types';
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
+import { useInertiaFilter } from '@/hooks/use-inertia-filter';
 
-type AssetItem = {
+interface AssetItem {
     id: number;
     name: string;
     category_id: number;
@@ -47,55 +49,29 @@ type AssetItem = {
     image?: string;
 };
 
+type Filter = {
+    search?: string;
+    kategori?: string;
+    status?: string;
+};
+
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Aset', href: '/asset' }];
 
 export default function Assets() {
-    const { assets, filters, categories, assetStatuses, auth } = usePage()
+    const { assets, categories, assetStatuses, auth } = usePage()
         .props as any;
     const permissions: string[] = auth.permissions ?? [];
-
-    const [search, setSearch] = useState(filters.search ?? '');
-    const [kategori, setKategori] = useState(filters.kategori ?? '');
-    const [status, setStatus] = useState(filters.status ?? '');
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingAsset, setEditingAsset] = useState<AssetItem | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<AssetItem | null>(null);
     const [alert, setAlert] = useState<any>(null);
 
-    const applyFilter = (
-        params: {
-            search?: string;
-            kategori?: string;
-            status?: string;
-            page?: number;
-        } = {},
-    ) => {
-        const queryParams: {
-            search?: string;
-            kategori?: string;
-            status?: string;
-            page?: number;
-        } = {};
-
-        if (search) queryParams.search = search;
-        if (kategori) queryParams.kategori = kategori;
-        if (status) queryParams.status = status;
-        if (params.page) queryParams.page = params.page;
-
-        router.get('/asset', queryParams, {
-            preserveState: true,
-            replace: true,
-        });
-    };
-
-    useEffect(() => {
-        applyFilter({
-            search,
-            kategori,
-            status,
-        });
-    }, [search, kategori, status]);
+    const { filters: filterState, setFilters, apply } = useInertiaFilter<Filter>('/asset', {
+        search: '',
+        kategori: '',
+        status: 'all',
+    });
 
     const handleDelete = () => {
         if (!deleteConfirm) return;
@@ -119,129 +95,53 @@ export default function Assets() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Data Aset" />
             <div className="space-y-6 p-6">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div className="max-w-md flex-1">
-                        <Label className="sr-only">Cari Aset</Label>
+                        <Label htmlFor='search'>Cari Aset</Label>
                         <Input
                             placeholder="Cari nama aset..."
-                            value={search}
-                            onChange={(e) => {
-                                setSearch(e.target.value);
-                            }}
+                            value={filterState.search}
+                            onChange={(e) => setFilters({ ...filterState, search: e.target.value })}
                         />
                     </div>
 
-                    <div className="flex gap-2">
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    className="w-full justify-between capitalize"
-                                >
-                                    {kategori || 'Semua Kategori'}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="p-0">
-                                <Command>
-                                    <CommandEmpty>
-                                        Kategori tidak ditemukan
-                                    </CommandEmpty>
-                                    <CommandGroup>
-                                        <CommandItem
-                                            onSelect={() => {
-                                                setKategori('');
-                                                applyFilter({
-                                                    kategori: '',
-                                                    page: 1,
-                                                });
-                                            }}
-                                            disabled={!kategori}
-                                        >
-                                            Semua Kategori
-                                        </CommandItem>
-
-                                        {categories.map(
-                                            (c: {
-                                                id: number;
-                                                name: string;
-                                            }) => (
-                                                <CommandItem
-                                                    key={c.id}
-                                                    onSelect={() => {
-                                                        setKategori(
-                                                            c.name.toLowerCase(),
-                                                        );
-                                                        applyFilter({
-                                                            kategori:
-                                                                c.name.toLowerCase(),
-                                                            page: 1,
-                                                        });
-                                                    }}
-                                                >
-                                                    {c.name}
-                                                </CommandItem>
-                                            ),
-                                        )}
-                                    </CommandGroup>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
-
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    className="justify-between capitalize"
-                                >
-                                    {status || 'Semua Status'}
-                                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="p-0">
-                                <Command>
-                                    <CommandGroup>
-                                        <CommandItem
-                                            onSelect={() => {
-                                                setStatus('');
-                                                applyFilter({
-                                                    status: '',
-                                                    page: 1,
-                                                });
-                                            }}
-                                            disabled={!status}
-                                        >
-                                            Semua Status
-                                        </CommandItem>
-
-                                        {assetStatuses.map(
-                                            (s: {
-                                                id: number;
-                                                name: string;
-                                            }) => (
-                                                <CommandItem
-                                                    key={s.id}
-                                                    onSelect={() => {
-                                                        setStatus(
-                                                            s.name.toLowerCase(),
-                                                        );
-                                                        applyFilter({
-                                                            status: s.name.toLowerCase(),
-                                                            page: 1,
-                                                        });
-                                                    }}
-                                                >
-                                                    {s.name}
-                                                </CommandItem>
-                                            ),
-                                        )}
-                                    </CommandGroup>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
-
-                        {can(permissions, 'manage assets') && (
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor="status" className="sr-only">Status</Label>
+                        <div className="flex gap-2">
+                            <Select
+                                value={filterState.kategori || 'all'}
+                                onValueChange={(value) =>
+                                    setFilters({ kategori: value === 'all' ? '' : value.toLowerCase() })
+                                }
+                            >
+                                <SelectTrigger className="w-full rounded border px-3 py-2">
+                                    <SelectValue 
+                                    placeholder="Semua Kategori" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua Kategori</SelectItem>
+                                    {categories.map((s:{id: number; name: string}) => (
+                                        <SelectItem key={s.id} value={s.name.toLowerCase()}>{s.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Select
+                                value={filterState.status || 'all'}
+                                onValueChange={(value) =>
+                                    setFilters({ status: value === 'all' ? '' : value.toLowerCase() })
+                                }
+                            >
+                                <SelectTrigger className="w-full rounded border px-3 py-2">
+                                    <SelectValue placeholder="Semua Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua Status</SelectItem>
+                                    {assetStatuses.map((s: { id: number; name: string }) => (
+                                        <SelectItem key={s.id} value={s.name.toLowerCase()}>{s.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        {permissions.includes('manage assets') && (
                             <Button
                                 onClick={() => {
                                     setEditingAsset(null);
@@ -253,7 +153,7 @@ export default function Assets() {
                             </Button>
                         )}
 
-                        {can(permissions, 'manage assets') && (
+                        {permissions.includes('manage assets') && (
                             <>
                                 <Button
                                     variant="outline"
@@ -279,6 +179,7 @@ export default function Assets() {
                                 </Button>
                             </>
                         )}
+                        </div>
                     </div>
                 </div>
 
@@ -296,7 +197,7 @@ export default function Assets() {
                                         <th className="px-4 py-3">Kategori</th>
                                         <th className="px-4 py-3">Kondisi</th>
                                         <th className="px-4 py-3">Status</th>
-                                        {can(permissions, 'manage assets') && (
+                                        {permissions.includes('manage assets') && (
                                             <th className="px-4 py-3">Aksi</th>
                                         )}
                                     </tr>
@@ -341,10 +242,8 @@ export default function Assets() {
                                                     {asset.status_name}
                                                 </Badge>
                                             </td>
-                                            {can(
-                                                permissions,
-                                                'manage assets',
-                                            ) && (
+                                            {
+                                                permissions.includes('manage assets') && (
                                                 <td className="flex gap-2 px-4 py-3">
                                                     <button
                                                         onClick={() =>
@@ -382,7 +281,7 @@ export default function Assets() {
                             <Pagination
                                 currentPage={assets.current_page}
                                 totalPages={assets.last_page}
-                                onPageChange={(page) => applyFilter({ page })}
+                                onPageChange={(page) => apply({ page })}
                             />
                         </div>
                     </CardContent>

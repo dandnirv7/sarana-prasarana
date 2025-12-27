@@ -35,7 +35,7 @@
                 <td>{{ $b->asset->name }}</td>
                 <td>{{ $b->borrow_date }}</td>
                 <td>{{ $b->return_date }}</td>
-                <td>{{ $b->status }}</td>
+                <td>{{ $b->status->name }}</td>
             </tr>
         @endforeach
     </tbody>
