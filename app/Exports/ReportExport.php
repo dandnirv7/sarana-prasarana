@@ -16,23 +16,47 @@ class ReportExport implements FromCollection, WithHeadings
     {
         $this->startDate = $startDate;
         $this->endDate = $endDate;
-        $this->status = $status;
+        $this->status = strtolower($status);
     }
-    
+
     public function collection()
     {
+        $statusMap = [
+            'sesuai' => 'Sesuai',
+            'rusak' => ['Rusak', 'Rusak Ringan', 'Rusak Berat', 'Perbaikan', 'Belum Diperbaiki'],
+            'hilang' => 'Hilang',
+        ];
+
         $query = Borrowing::with(['user:id,name', 'asset:id,name'])
             ->whereBetween('borrow_date', [$this->startDate, $this->endDate])
-            ->when($this->status !== 'all', fn($q) => $q->where('status', $this->status));
+            ->when($this->status !== 'all', function ($q) use ($statusMap) {
+                $filterValue = $statusMap[$this->status] ?? null;
+                if ($filterValue) {
+                    if (is_array($filterValue)) {
+                        $q->whereIn('condition_status', $filterValue);
+                    } else {
+                        $q->where('condition_status', $filterValue);
+                    }
+                }
+            });
 
         return $query->get()->map(function($item) {
+            $condition = $item->condition_status;
+            if (in_array($condition, ['Rusak', 'Rusak Ringan', 'Rusak Berat', 'Perbaikan', 'Belum Diperbaiki'])) {
+                $condition = 'Rusak';
+            } elseif ($condition === 'Sesuai') {
+                $condition = 'Sesuai';
+            } elseif ($condition === 'Hilang') {
+                $condition = 'Hilang';
+            }
+
             return [
                 'Peminjam' => $item->user->name,
                 'Nama Aset' => $item->asset->name,
                 'Tgl Pinjam' => $item->borrow_date,
                 'Tgl Kembali' => $item->return_date ?? '-',
                 'Kondisi' => $item->asset_condition,
-                'Status' => $item->status,
+                'Status' => $condition,
             ];
         });
     }

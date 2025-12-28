@@ -5,33 +5,36 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Borrowing;
 use App\Models\AssetReturn;
-use Illuminate\Support\Str;
 
 class AssetReturnSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
         $borrowings = Borrowing::all();
-
         $conditions = ['Baik', 'Rusak', 'Perbaikan'];
 
         foreach ($borrowings as $borrowing) {
             $returnDateActual = $borrowing->return_date ?? $borrowing->borrow_date;
-            $assetCondition = $conditions[array_rand($conditions)];
+            $returnCondition  = $conditions[array_rand($conditions)];
+
+            if ($borrowing->asset_condition === $returnCondition) {
+                $conditionStatus = 'Sesuai';
+            } else {
+                $conditionStatus = $returnCondition;
+            }
 
             AssetReturn::create([
-                'borrowing_id' => $borrowing->id,
-                'return_date_actual' => $returnDateActual,
-                'asset_condition' => $assetCondition,
-                'note' => 'Catatan pengembalian asset',
+                'borrowing_id'        => $borrowing->id,
+                'return_date_actual'  => $returnDateActual,
+                'asset_condition'     => $returnCondition,
+                'condition_status'    => $conditionStatus,
+                'note'                => 'Catatan pengembalian asset',
             ]);
 
             $borrowing->update([
                 'actual_return_date' => $returnDateActual,
-                'asset_condition' => $assetCondition,
+                'asset_condition'    => $returnCondition,
+                'condition_status'   => $conditionStatus,
             ]);
         }
     }

@@ -2,83 +2,165 @@
 
 namespace App\Http\Controllers;
 
-use App\Exports\ReportExport;
 use App\Models\Borrowing;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\ReportExport;
+use Illuminate\Support\Facades\Validator;
 
 class ReportController extends Controller
 {
     public function index(Request $request)
     {
-        $startDate = $request->input(
-            'start_date',
-            Carbon::now()->subMonth()->toDateString()
-        );
+          $validator = Validator::make($request->all(), [
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'status' => ['nullable', 'string'],
+        ], [
+            'end_date.after_or_equal' => 'Tanggal akhir harus sama atau setelah tanggal mulai.',
+            'start_date.required' => 'Tanggal mulai wajib diisi.',
+            'end_date.required' => 'Tanggal akhir wajib diisi.',
+            'start_date.date' => 'Tanggal mulai tidak valid.',
+            'end_date.date' => 'Tanggal akhir tidak valid.',
+        ]);
 
-        $endDate = $request->input(
-            'end_date',
-            Carbon::now()->toDateString()
-        );
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
 
-        $status = $request->input('status', 'all');
+        $filters = [
+            'start_date' => $request->input('start_date', Carbon::now()->subMonth()->toDateString()),
+            'end_date'   => $request->input('end_date', Carbon::now()->toDateString()),
+            'status'     => strtolower($request->input('status', 'all')),
+        ];
 
-        $baseQuery = Borrowing::query()
-            ->with(['user:id,name', 'asset:id,name'])
-            ->whereBetween('borrow_date', [$startDate, $endDate])
-            ->when($status !== 'all', fn ($q) =>
-                $q->where('status', $status)
-            );
+        $statusMap = [
+            'sesuai' => 'Sesuai',
+            'rusak'  => ['Rusak', 'Rusak Ringan', 'Rusak Berat', 'Perbaikan', 'Belum Diperbaiki'],
+            'hilang' => 'Hilang',
+        ];
 
-        $borrowings = (clone $baseQuery)
-            ->latest()
-            ->with(['user:id,name', 'asset:id,name', 'status:id,name'])  
+        $borrowingsQuery = Borrowing::with([
+                'user:id,name',
+                'asset:id,name',
+                'assetReturn'
+            ])
+            ->whereBetween('borrow_date', [$filters['start_date'], $filters['end_date']])
+            ->when($filters['status'] !== 'all', function ($q) use ($filters, $statusMap) {
+                $filterValue = $statusMap[$filters['status']] ?? null;
+                if ($filterValue) {
+                    if (is_array($filterValue)) {
+                        $q->whereIn('condition_status', $filterValue);
+                    } else {
+                        $q->where('condition_status', $filterValue);
+                    }
+                }
+            })
+            ->latest();
+
+        $allBorrowings = $borrowingsQuery->get();
+
+        $stats = [
+            'total'  => $allBorrowings->count(),
+            'sesuai' => $allBorrowings->where('condition_status', 'Sesuai')->count(),
+            'rusak'  => $allBorrowings->whereIn('condition_status', [
+                'Rusak', 'Rusak Ringan', 'Rusak Berat', 'Perbaikan', 'Belum Diperbaiki'
+            ])->count(),
+            'hilang' => $allBorrowings->where('condition_status', 'Hilang')->count(),
+        ];
+
+        $statusConditions = ['Sesuai', 'Rusak', 'Hilang'];
+
+        $borrowings = $borrowingsQuery
             ->paginate(10)
             ->withQueryString();
 
-
-        $stats = [
-            'total' => (clone $baseQuery)->count(),
-            'sesuai' => (clone $baseQuery)->where('asset_condition', 'Sesuai')->count(),
-            'rusak'  => (clone $baseQuery)->where('asset_condition', 'Rusak')->count(),
-            'hilang' => (clone $baseQuery)->where('asset_condition', 'Hilang')->count(),
-        ];
-
         return Inertia::render('reports/index', [
-            'borrowings' => $borrowings,
-            'stats' => $stats,
-            'filters' => [
-                'start_date' => $startDate,
-                'end_date' => $endDate,
-                'status' => $status,
-            ],
+            'borrowings'       => $borrowings,
+            'stats'            => $stats,
+            'filters'          => $filters,
+            'statusConditions' => $statusConditions,
         ]);
     }
 
     public function exportExcel(Request $request)
     {
-        $startDate = $request->input('start_date', Carbon::now()->subMonth()->toDateString());
-        $endDate = $request->input('end_date', Carbon::now()->toDateString());
-        $status = $request->input('status', 'all');
+        $validator = Validator::make($request->all(), [
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'status' => ['nullable', 'string'],
+        ], [
+            'end_date.after_or_equal' => 'Tanggal akhir harus sama atau setelah tanggal mulai.',
+        ]);
 
-        return Excel::download(new ReportExport($startDate, $endDate, $status), 'reports.xlsx');
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $filters = [
+            'start_date' => $request->input('start_date', Carbon::now()->subMonth()->toDateString()),
+            'end_date'   => $request->input('end_date', Carbon::now()->toDateString()),
+            'status'     => strtolower($request->input('status', 'all')),
+        ];
+
+        return Excel::download(
+            new ReportExport($filters['start_date'], $filters['end_date'], $filters['status']),
+            'reports.xlsx'
+        );
     }
 
     public function exportPdf(Request $request)
     {
-        $startDate = $request->input('start_date', Carbon::now()->subMonth()->toDateString());
-        $endDate = $request->input('end_date', Carbon::now()->toDateString());
-        $status = $request->input('status', 'all');
+        $validator = Validator::make($request->all(), [
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'status' => ['nullable', 'string'],
+        ], [
+            'end_date.after_or_equal' => 'Tanggal akhir harus sama atau setelah tanggal mulai.',
+        ]);
 
-        $borrowings = Borrowing::with(['user:id,name', 'asset:id,name'])
-            ->whereBetween('borrow_date', [$startDate, $endDate])
-            ->when($status !== 'all', fn ($q) => $q->where('status', $status))
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $filters = [
+            'start_date' => $request->input('start_date', Carbon::now()->subMonth()->toDateString()),
+            'end_date'   => $request->input('end_date', Carbon::now()->toDateString()),
+            'status'     => strtolower($request->input('status', 'all')),
+        ];
+
+        $statusMap = [
+            'sesuai' => 'Sesuai',
+            'rusak'  => ['Rusak', 'Rusak Ringan', 'Rusak Berat', 'Perbaikan', 'Belum Diperbaiki'],
+            'hilang' => 'Hilang',
+        ];
+
+        $borrowings = Borrowing::with([
+                'user:id,name',
+                'asset:id,name',
+                'assetReturn'
+            ])
+            ->whereBetween('borrow_date', [$filters['start_date'], $filters['end_date']])
+            ->when($filters['status'] !== 'all', function ($q) use ($filters, $statusMap) {
+                $filterValue = $statusMap[$filters['status']] ?? null;
+                if ($filterValue) {
+                    if (is_array($filterValue)) {
+                        $q->whereIn('condition_status', $filterValue);
+                    } else {
+                        $q->where('condition_status', $filterValue);
+                    }
+                }
+            })
             ->get();
 
-        return Pdf::loadView('pdf.reports', compact('borrowings'))
-            ->download('data-laporan.pdf');
+        return Pdf::loadView('pdf.reports', [
+            'borrowings' => $borrowings,
+            'start_date' => $filters['start_date'],
+            'end_date'   => $filters['end_date'],
+            'status'     => $filters['status'] !== 'all' ? $filters['status'] : 'Semua',
+        ])->download('data-laporan.pdf');
     }
 }

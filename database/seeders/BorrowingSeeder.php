@@ -67,6 +67,7 @@ class BorrowingSeeder extends Seeder
                     'asset_condition' => $asset->condition,
                     'borrow_date' => $borrowDate,
                     'return_date' => $returnDate,
+                    'condition_status' => null,
                     'status_id'   => $status->id,
                 ]);
             }

@@ -13,8 +13,8 @@
 </head>
 <body>
     <h2>Laporan Peminjaman</h2>
-    <p>Periode: {{ request('start_date') }} - {{ request('end_date') }}</p>
-    <p>Status: {{ request('status') ?? 'Semua' }}</p>
+    <p>Periode: {{ $start_date }} - {{ $end_date }}</p>
+    <p>Status: {{ ucfirst($status) }}</p>
 
     <table>
         <thead>
@@ -35,7 +35,7 @@
                 <td>{{ $item->borrow_date }}</td>
                 <td>{{ $item->return_date ?? '-' }}</td>
                 <td>{{ $item->asset_condition }}</td>
-                <td>{{ $item->status }}</td>
+                <td>{{ $item->condition_status }}</td>
             </tr>
             @endforeach
         </tbody>

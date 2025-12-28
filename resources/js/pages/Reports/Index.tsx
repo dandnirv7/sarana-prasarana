@@ -12,16 +12,13 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
-import { Head, router } from '@inertiajs/react';
-import { ChevronDownIcon, Download, FileText } from 'lucide-react';
+import { Head, usePage } from '@inertiajs/react';
+import { Download, FileText } from 'lucide-react';
 import { useState } from 'react';
 
-import { Calendar } from '@/components/ui/calendar';
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/components/ui/popover';
+import DatePicker from '@/components/common/date-picker';
+import { useInertiaFilter } from '@/hooks/use-inertia-filter';
+import dayjs from 'dayjs';
 
 interface User {
     id: number;
@@ -43,6 +40,8 @@ interface Borrowing {
     borrow_date: string;
     return_date: string | null;
     asset_condition: 'Sesuai' | 'Rusak' | 'Hilang';
+    condition_status: 'Sesuai' | 'Rusak' | 'Hilang';
+    asset_status: 'Sesuai' | 'Rusak' | 'Hilang';
     status: Status;
     user: User;
     asset: Asset;
@@ -76,21 +75,45 @@ interface ReportsProps {
         end_date: string;
         status: string;
     };
+    statusConditions: string[];
 }
 
-export default function Reports({ borrowings, stats, filters }: ReportsProps) {
-    const [startDate, setStartDate] = useState(filters.start_date);
-    const [endDate, setEndDate] = useState(filters.end_date);
-    const [status, setStatus] = useState(filters.status ?? 'all');
+const today = dayjs().format('YYYY-MM-DD');
 
-    console.log(borrowings.data);
+export default function Reports({
+    borrowings,
+    stats,
+    filters,
+    statusConditions,
+}: ReportsProps) {
+    const { errors } = usePage().props as any;
 
-    const [dateStart, setDateStart] = useState<Date | undefined>(
-        filters.start_date ? new Date(filters.start_date) : undefined,
+    const {
+        filters: filterState,
+        setFilters,
+        apply,
+    } = useInertiaFilter('/reports', {
+        start_date: filters.start_date,
+        end_date: filters.end_date,
+        status: filters.status,
+    });
+
+    const [dateStart, setDateStart] = useState<string>(
+        filterState.start_date || today,
     );
-    const [dateEnd, setDateEnd] = useState<Date | undefined>(
-        filters.end_date ? new Date(filters.end_date) : undefined,
+    const [dateEnd, setDateEnd] = useState<string>(
+        filterState.end_date || today,
     );
+
+    const onSelectStartDate = (value: string) => {
+        setDateStart(value);
+        setFilters({ ...filterState, start_date: value });
+    };
+
+    const onSelectEndDate = (value: string) => {
+        setDateEnd(value);
+        setFilters({ ...filterState, end_date: value });
+    };
 
     const [openStart, setOpenStart] = useState(false);
     const [openEnd, setOpenEnd] = useState(false);
@@ -108,47 +131,6 @@ export default function Reports({ borrowings, stats, filters }: ReportsProps) {
         return `${yyyy}-${mm}-${dd}`;
     };
 
-    const applyFilter = (params: {
-        start_date?: string;
-        end_date?: string;
-        status?: string;
-        page?: number;
-    }) => {
-        router.get(
-            '/reports',
-            {
-                start_date: startDate,
-                end_date: endDate,
-                status,
-                ...params,
-            },
-            {
-                preserveState: true,
-                replace: true,
-            },
-        );
-    };
-
-    const onSelectStartDate = (date?: Date) => {
-        setDateStart(date);
-        if (date) {
-            const formatted = formatDate(date);
-            setStartDate(formatted);
-            applyFilter({ start_date: formatted, page: 1 });
-        }
-        setOpenStart(false);
-    };
-
-    const onSelectEndDate = (date?: Date) => {
-        setDateEnd(date);
-        if (date) {
-            const formatted = formatDate(date);
-            setEndDate(formatted);
-            applyFilter({ end_date: formatted, page: 1 });
-        }
-        setOpenEnd(false);
-    };
-
     return (
         <AppLayout>
             <Head title="Laporan" />
@@ -159,85 +141,41 @@ export default function Reports({ borrowings, stats, filters }: ReportsProps) {
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                            <div className="flex flex-col gap-3">
-                                <Label htmlFor="start-date" className="px-1">
-                                    Tanggal Mulai
-                                </Label>
-                                <Popover
-                                    open={openStart}
-                                    onOpenChange={setOpenStart}
-                                >
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            id="start-date"
-                                            className="w-48 justify-between font-normal"
-                                        >
-                                            {dateStart
-                                                ? dateStart.toLocaleDateString()
-                                                : 'Pilih tanggal mulai'}
-                                            <ChevronDownIcon />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent
-                                        className="w-auto overflow-hidden p-0"
-                                        align="start"
-                                    >
-                                        <Calendar
-                                            mode="single"
-                                            selected={dateStart}
-                                            captionLayout="dropdown"
-                                            onSelect={onSelectStartDate}
-                                            initialFocus
-                                        />
-                                    </PopoverContent>
-                                </Popover>
+                            <div className="space-y-2">
+                                <DatePicker
+                                    label="Tanggal Mulai"
+                                    value={dateStart}
+                                    onChange={onSelectStartDate}
+                                />
+                                {errors.start_date && (
+                                    <p className="text-sm text-red-600">
+                                        {errors.start_date}
+                                    </p>
+                                )}
                             </div>
 
-                            <div className="flex flex-col gap-3">
-                                <Label htmlFor="end-date" className="px-1">
-                                    Tanggal Akhir
-                                </Label>
-                                <Popover
-                                    open={openEnd}
-                                    onOpenChange={setOpenEnd}
-                                >
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            id="end-date"
-                                            className="w-48 justify-between font-normal"
-                                        >
-                                            {dateEnd
-                                                ? dateEnd.toLocaleDateString()
-                                                : 'Pilih tanggal akhir'}
-                                            <ChevronDownIcon />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent
-                                        className="w-auto overflow-hidden p-0"
-                                        align="start"
-                                    >
-                                        <Calendar
-                                            mode="single"
-                                            selected={dateEnd}
-                                            captionLayout="dropdown"
-                                            onSelect={onSelectEndDate}
-                                            initialFocus
-                                        />
-                                    </PopoverContent>
-                                </Popover>
+                            <div className="space-y-2">
+                                <DatePicker
+                                    label="Tanggal Akhir"
+                                    value={dateEnd}
+                                    defaultValue={today}
+                                    onChange={onSelectEndDate}
+                                />
+                                {errors.end_date && (
+                                    <p className="text-sm text-red-600">
+                                        {errors.end_date}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="space-y-2">
                                 <Label>Status</Label>
                                 <Select
-                                    value={status}
+                                    value={filterState.status}
                                     onValueChange={(value) => {
-                                        setStatus(value);
-                                        applyFilter({
-                                            status: value,
-                                            page: 1,
+                                        setFilters({
+                                            ...filterState,
+                                            status: value.toLowerCase(),
                                         });
                                     }}
                                 >
@@ -248,15 +186,14 @@ export default function Reports({ borrowings, stats, filters }: ReportsProps) {
                                         <SelectItem value="all">
                                             Semua
                                         </SelectItem>
-                                        <SelectItem value="Pending">
-                                            Pending
-                                        </SelectItem>
-                                        <SelectItem value="Disetujui">
-                                            Disetujui
-                                        </SelectItem>
-                                        <SelectItem value="Ditolak">
-                                            Ditolak
-                                        </SelectItem>
+                                        {statusConditions.map((item) => (
+                                            <SelectItem
+                                                key={item}
+                                                value={item.toLowerCase()}
+                                            >
+                                                {item}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -401,17 +338,46 @@ export default function Reports({ borrowings, stats, filters }: ReportsProps) {
                                             <td className="px-4 py-2">
                                                 <Badge
                                                     variant={
-                                                        item.status.name ===
-                                                        'Disetujui'
-                                                            ? 'success'
-                                                            : item.status
-                                                                    .name ===
-                                                                'Pending'
-                                                              ? 'warning'
-                                                              : 'destructive'
+                                                        !item.condition_status
+                                                            ? 'destructive'
+                                                            : item.condition_status ===
+                                                                'Sesuai'
+                                                              ? 'success'
+                                                              : [
+                                                                      'Rusak',
+                                                                      'Rusak Ringan',
+                                                                      'Rusak Berat',
+                                                                      'Perbaikan',
+                                                                      'Belum Diperbaiki',
+                                                                  ].includes(
+                                                                      item.condition_status,
+                                                                  )
+                                                                ? 'warning'
+                                                                : item.condition_status ===
+                                                                    'Hilang'
+                                                                  ? 'destructive'
+                                                                  : 'destructive'
                                                     }
                                                 >
-                                                    {item.status.name}
+                                                    {!item.condition_status
+                                                        ? 'Belum Dikembalikan'
+                                                        : item.condition_status ===
+                                                            'Sesuai'
+                                                          ? 'Sesuai'
+                                                          : [
+                                                                  'Rusak',
+                                                                  'Rusak Ringan',
+                                                                  'Rusak Berat',
+                                                                  'Perbaikan',
+                                                                  'Belum Diperbaiki',
+                                                              ].includes(
+                                                                  item.condition_status,
+                                                              )
+                                                            ? 'Rusak'
+                                                            : item.condition_status ===
+                                                                'Hilang'
+                                                              ? 'Hilang'
+                                                              : 'Belum Dikembalikan'}
                                                 </Badge>
                                             </td>
                                         </tr>
@@ -423,7 +389,7 @@ export default function Reports({ borrowings, stats, filters }: ReportsProps) {
                         <Pagination
                             currentPage={borrowings.current_page}
                             totalPages={borrowings.last_page}
-                            onPageChange={(page) => applyFilter({ page })}
+                            onPageChange={(page) => apply({ page })}
                         />
                     </CardContent>
                 </Card>

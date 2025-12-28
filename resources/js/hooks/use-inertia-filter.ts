@@ -18,7 +18,10 @@ export function useInertiaFilter<T extends Record<string, any>>(
         Object.keys(next).forEach((key) => {
             const value = (next as any)[key];
             if (value !== undefined && value !== null && value !== '') {
-                if (key === 'status' || (key === 'role' && value === 'all'))
+                if (
+                    (key === 'status' && value === 'all') ||
+                    (key === 'role' && value === 'all')
+                )
                     return;
                 (queryParams as any)[key] = value;
             }
