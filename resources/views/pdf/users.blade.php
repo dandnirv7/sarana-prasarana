@@ -34,7 +34,7 @@
                 <td>{{ $u->name }}</td>
                 <td>{{ $u->email }}</td>
                 <td>{{ $u->roles->first()?->name }}</td>
-                <td>{{ $u->status }}</td>
+                <td>{{ $u->email_verified_at ? 'Aktif' : 'Tidak Aktif' }}</td>
                 <td>{{ $u->department?->value }}</td>
             </tr>
         @endforeach

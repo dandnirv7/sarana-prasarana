@@ -16,20 +16,24 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
+        $filters = [
+            'search' => $request->search ? strtolower($request->search) : null,
+            'role'   => $request->role ? strtolower($request->role) : null,
+        ];
+
+
         $users = User::query()
             ->with('roles')
-            ->when($request->search, fn($q) =>
-                $q->where(function ($qq) use ($request) {
-                    $qq->where('name', 'like', "%{$request->search}%")
-                       ->orWhere('email', 'like', "%{$request->search}%");
+            ->when($filters['search'], fn($q) =>
+                $q->where(function ($qq) use ($filters) {
+                    $qq->whereRaw('LOWER(name) like ?', ["%{$filters['search']}%"])
+                    ->orWhereRaw('LOWER(email) like ?', ["%{$filters['search']}%"]);
                 })
             )
-            ->when($request->role, fn($q) =>
-                $q->whereHas('roles', fn($r) => $r->where('name', $request->role))
-            )
-            ->when($request->status, fn($q) => $request->status === 'Active' 
-                ? $q->whereNotNull('email_verified_at') 
-                : $q->whereNull('email_verified_at')
+            ->when($filters['role'], fn($q) =>
+                $q->whereHas('roles', fn($r) =>
+                    $r->whereRaw('LOWER(name) = ?', [$filters['role']])
+                )
             )
             ->paginate(10)
             ->through(fn($user) => [
@@ -37,13 +41,17 @@ class UserController extends Controller
                 'name'       => $user->name,
                 'email'      => $user->email,
                 'role'       => $user->roles->first()?->name ?? '-',
-                'status'     => $user->email_verified_at ? 'Active' : 'Inactive',
+                'status'     => $user->email_verified_at ? 'Aktif' : 'Tidak Aktif',
                 'department' => $user->department,
             ]);
 
+
+        $roles = Role::all();
+
         return Inertia::render('users/index', [
             'users'   => $users,
-            'filters' => $request->only('search', 'role', 'status'),
+            'roles' => $roles,
+            'filters' => $filters,
             'departments'  => Department::options(), 
         ]);
     }
@@ -53,43 +61,63 @@ class UserController extends Controller
         $data = $request->validate([
             'name'       => ['required', 'string', 'max:255'],
             'email'      => ['required', 'email', 'unique:users,email'],
-            'password'   => ['required', 'min:8'],
-            'role'       => ['required', 'in:admin,manager,staff'],
-            'status'     => ['required', 'in:Active,Inactive'],
+            'password'   => ['required', 'string', 'min:8'],
+            'role'       => ['required', 'in:Admin,Manager,Staff'],
             'department' => ['required', new Enum(Department::class)],
+        ], [
+            'name.required'       => 'Nama wajib diisi.',
+            'name.string'         => 'Nama harus berupa teks.',
+            'name.max'            => 'Nama maksimal 255 karakter.',
+            'email.required'      => 'Email wajib diisi.',
+            'email.email'         => 'Email tidak valid.',
+            'email.unique'        => 'Email sudah digunakan.',
+            'password.required'   => 'Password wajib diisi.',
+            'password.min'        => 'Password minimal 8 karakter.',
+            'role.required'       => 'Role wajib dipilih.',
+            'role.in'             => 'Role yang dipilih tidak valid.',
+            'department.required' => 'Departemen wajib dipilih.',
+            'department.enum'     => 'Departemen tidak valid.',
         ]);
 
         $user = User::create([
-            'name'              => $data['name'],
-            'email'             => $data['email'],
-            'password'          => bcrypt($data['password']),
-            'department'        => $data['department'],
-            'email_verified_at' => $data['status'] === 'Active' ? now() : null,
+            'name'       => $data['name'],
+            'email'      => $data['email'],
+            'password'   => bcrypt($data['password']),
+            'department' => $data['department'],
         ]);
+
+        $user->email_verified_at = now();
+        $user->save();
 
         $user->assignRole($data['role']);
 
-        return redirect()
-            ->back()
-            ->with('success', 'User berhasil ditambahkan');
+        return redirect()->back()->with('success', 'User berhasil ditambahkan');
     }
-
 
     public function update(Request $request, User $user)
     {
         $data = $request->validate([
-            'name'       => 'required',
-            'email'      => 'required|email|unique:users,email,' . $user->id, 
-            'role'       => 'required|in:admin,manager,staff',
-            'department' => 'required',
-            'status'     => 'nullable|in:Active,Inactive', 
+            'name'       => ['required', 'string', 'max:255'],
+            'email'      => ['required', 'email', 'unique:users,email,' . $user->id],
+            'role'       => ['required', 'in:Admin,Manager,Staff'],
+            'department' => ['required', new Enum(Department::class)],
+        ], [
+            'name.required'       => 'Nama wajib diisi.',
+            'name.string'         => 'Nama harus berupa teks.',
+            'name.max'            => 'Nama maksimal 255 karakter.',
+            'email.required'      => 'Email wajib diisi.',
+            'email.email'         => 'Email tidak valid.',
+            'email.unique'        => 'Email sudah digunakan.',
+            'role.required'       => 'Role wajib dipilih.',
+            'role.in'             => 'Role yang dipilih tidak valid.',
+            'department.required' => 'Departemen wajib dipilih.',
+            'department.enum'     => 'Departemen tidak valid.',
         ]);
 
         $user->update([
-            'name'             => $data['name'],
-            'email'            => $data['email'],
-            'department'       => $data['department'],
-            'email_verified_at' => $data['status'] === 'Active' ? now() : null,    
+            'name'       => $data['name'],
+            'email'      => $data['email'],
+            'department' => $data['department'],
         ]);
 
         $user->syncRoles([$data['role']]);
@@ -99,8 +127,8 @@ class UserController extends Controller
 
     public function scopeStatus($query, $status)
     {
-        if ($status === 'Active') return $query->whereNotNull('email_verified_at');
-        if ($status === 'Inactive') return $query->whereNull('email_verified_at');
+        if ($status === 'Aktif') return $query->whereNotNull('email_verified_at');
+        if ($status === 'Tidak Aktif') return $query->whereNull('email_verified_at');
         return $query;
     }
 
