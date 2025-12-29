@@ -52,9 +52,17 @@ class DashboardController extends Controller
             ]);
 
         $assetStatusData = [
-            'Tersedia' => $availableAssets + $returnedAssets, 
+            'Tersedia' => $availableAssets,
             'Dipinjam' => $borrowedAssets,
-            'Rusak' => $repairedAssets, 
+            'Rusak' => $repairedAssets,
+        ];
+
+        $totalForPercentage = array_sum($assetStatusData);
+
+        $assetStatusPercentage = [
+            'Tersedia' => $totalForPercentage > 0 ? ($assetStatusData['Tersedia'] / $totalForPercentage) * 100 : 0,
+            'Dipinjam' => $totalForPercentage > 0 ? ($assetStatusData['Dipinjam'] / $totalForPercentage) * 100 : 0,
+            'Rusak' => $totalForPercentage > 0 ? ($assetStatusData['Rusak'] / $totalForPercentage) * 100 : 0,
         ];
 
         $assetStatusDataLastMonth = Asset::select('status_id', DB::raw('COUNT(*) as total'))
@@ -110,7 +118,7 @@ class DashboardController extends Controller
                     'name' => $category->name,
                     'value' => $category->assets_count,
                 ]),
-            'assetStatusData' => $assetStatusData,
+            'assetStatusData' => $assetStatusPercentage,
             'formattedAssetStatusData' => $formattedAssetStatusData,
             'recentActivities' => $recentActivities,
         ]);

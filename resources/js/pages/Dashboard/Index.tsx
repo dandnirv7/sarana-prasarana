@@ -94,12 +94,6 @@ export default function Dashboard({
         },
     ];
 
-    const getAssetStatusPercentage = (status: string) => {
-        const total = assetStatusData[status] ?? 0;
-        const totalAssets = stats.totalAssets ?? 1;
-        return ((total / totalAssets) * 100).toFixed(1);
-    };
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
@@ -162,12 +156,13 @@ export default function Dashboard({
                                         <span
                                             className={`text-lg font-bold ${status === 'Tersedia' ? 'text-green-500' : status === 'Dipinjam' ? 'text-yellow-500' : 'text-red-500'}`}
                                         >
-                                            {getAssetStatusPercentage(status)}%
+                                            {assetStatusData[status].toFixed(1)}
+                                            %
                                         </span>
                                     </div>
                                     <div className="h-2 w-full rounded-full bg-muted">
                                         <div
-                                            className={`h-2 rounded-full ${
+                                            className={`h-2 rounded-full transition-all duration-500 ${
                                                 status === 'Tersedia'
                                                     ? 'bg-green-500'
                                                     : status === 'Dipinjam'
@@ -175,7 +170,7 @@ export default function Dashboard({
                                                       : 'bg-red-500'
                                             }`}
                                             style={{
-                                                width: `${getAssetStatusPercentage(status)}%`,
+                                                width: `${assetStatusData[status].toFixed(1)}%`,
                                             }}
                                         />
                                     </div>

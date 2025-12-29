@@ -1,6 +1,6 @@
 # Sarana Prasarana
 
-**Sarana Prasarana** adalah sistem manajemen aset modern yang dibangun dengan **Laravel** (backend) dan **React (TypeScript)** (frontend). Sistem ini menyediakan antarmuka bersih untuk mengelola aset, pengguna, dan izin, memanfaatkan Inertia.js untuk rendering sisi‑server yang mulus serta Ziggy untuk penanganan route di sisi klien.
+**Sarana Prasarana** adalah sistem manajemen aset modern yang dibangun dengan **Laravel 12** (backend) dan **React 19 (TypeScript)** (frontend). Sistem ini menyediakan antarmuka bersih untuk mengelola aset, peminjaman, pengembalian, dan laporan, memanfaatkan Inertia.js untuk rendering sisi‑server yang mulus serta Ziggy untuk penanganan route di sisi klien.
 
 ---
 
@@ -26,31 +26,34 @@
 
 Sarana Prasarana membantu organisasi melacak aset fisik mereka (misalnya peralatan, fasilitas, inventaris). Fitur utama meliputi:
 
-- **CRUD Aset** dengan manajemen kategori.
-- **Manajemen Pengguna** dengan izin berbasis peran (menggunakan paket Spatie Laravel Permission).
-- **UI Dinamis** yang didukung komponen React berbasis TypeScript.
-- **Inertia.js** sebagai jembatan untuk pengalaman single‑page‑app sambil tetap menggunakan routing Laravel.
-- **Ziggy** untuk menghasilkan route secara tipe‑aman di sisi klien.
+- **Manajemen Aset & Kategori** yang lengkap.
+- **Peminjaman & Pengembalian** aset dengan alur persetujuan.
+- **Manajemen Pengguna** dengan izin berbasis peran (menggunakan Spatie Laravel Permission).
+- **Laporan & Statistik** dengan visualisasi data interaktif.
+- **Export Data** ke format Excel dan PDF.
+- **UI Modern** menggunakan Tailwind CSS 4 dan Radix UI.
 
 ---
 
 ## Teknologi yang Digunakan
 
-| Lapisan     | Teknologi                                   |
-| ----------- | ------------------------------------------- |
-| Backend     | Laravel 10, PHP 8.2, MySQL/PostgreSQL       |
-| Frontend    | React 18, TypeScript, Vite                  |
-| Routing     | Inertia.js, Ziggy                           |
-| Autentikasi | Laravel Breeze (atau Jetstream)             |
-| Izin        | Spatie Laravel Permission                   |
-| Pengujian   | PHPUnit, Pest, Jest                         |
-| CI/CD       | GitHub Actions (contoh workflow disertakan) |
+| Lapisan     | Teknologi                                      |
+| ----------- | ---------------------------------------------- |
+| Backend     | Laravel 12, PHP 8.2+, MySQL/PostgreSQL         |
+| Frontend    | React 19, TypeScript, Vite, Tailwind CSS 4     |
+| Routing     | Inertia.js (v2), Ziggy                         |
+| Autentikasi | Laravel Fortify                                |
+| Izin        | Spatie Laravel Permission                      |
+| Visualisasi | Recharts                                       |
+| Ekspor      | Laravel Excel (Maatwebsite), Laravel DOMPDF    |
+| UI Library  | Radix UI, Lucide React, Shadcn UI (Components) |
+| Pengujian   | PHPUnit, Pest                                  |
 
 ---
 
 ## Prasyarat
 
-- **Node.js** (>= 18.x) dan **npm** (atau **yarn**)
+- **Node.js** (>= 20.x) dan **npm**
 - **PHP** (>= 8.2) dengan Composer
 - **Database** (MySQL 8.x atau PostgreSQL 13+)
 - **Git**
@@ -68,7 +71,7 @@ cd sarana-prasarana
 composer install
 
 # Install dependensi Node
-npm install   # atau `yarn`
+npm install
 ```
 
 ---
@@ -103,7 +106,7 @@ npm install   # atau `yarn`
 
 5. **Kompilasi aset front‑end (development)**
     ```bash
-    npm run dev   # hot‑reload dengan Vite
+    npm run dev
     ```
 
 ---
@@ -114,17 +117,20 @@ npm install   # atau `yarn`
 # Mulai server development Laravel
 php artisan serve
 
-# Di terminal lain, jalankan Vite (jika belum berjalan)
+# Di terminal lain, jalankan Vite
 npm run dev
+
+# Jika ingin menjalankan kedua perintah di satu terminal
+composer run dev
 ```
 
-Buka `http://127.0.0.1:8000` di browser. Komponen React disajikan melalui Vite dan terintegrasi lewat Inertia.
+Buka `http://127.0.0.1:8000` di browser.
 
 ---
 
 ## Membuat Build Front‑end
 
-- **Development (watch mode)**: `npm run dev`
+- **Development**: `npm run dev`
 - **Production build**: `npm run build`
 
 Build produksi menghasilkan aset teroptimasi di `public/build`.
@@ -136,102 +142,74 @@ Build produksi menghasilkan aset teroptimasi di `public/build`.
 ### Backend
 
 ```bash
-php artisan test   # menjalankan tes PHPUnit / Pest
-```
-
-### Frontend
-
-```bash
-npm run test   # menjalankan tes Jest (jika sudah dikonfigurasi)
+php artisan test
 ```
 
 ---
 
 ## Daftar Fitur
 
-- **Manajemen Aset**: Tambah, edit, hapus, dan lihat detail aset.
-- **Kategori Aset**: Buat dan kelola kategori aset.
-- **Manajemen Pengguna**: CRUD pengguna lengkap dengan foto profil.
-- **Peran & Izin**: Atur peran (admin, manager, staff) dan izin spesifik menggunakan Spatie Permission.
-- **Dashboard Interaktif**: Statistik aset, grafik, dan ringkasan cepat.
-- **Pencarian & Filter**: Cari aset berdasarkan nama, kategori, atau status.
-- **Ekspor Data**: Export aset ke CSV/Excel.
-- **Notifikasi Real‑time** (opsional): Notifikasi saat aset ditambahkan atau diubah.
-- **Responsif & Mobile Friendly**: UI yang beradaptasi dengan semua ukuran layar.
-- **Integrasi Inertia.js**: Pengalaman SPA tanpa kehilangan kekuatan Laravel.
-- **Route Type‑Safe dengan Ziggy**: Menghindari kesalahan penulisan route di client.
+- **Dashboard Interaktif**: Statistik aset, grafik peminjaman, dan ringkasan cepat menggunakan Recharts.
+- **Manajemen Aset**: CRUD aset dengan riwayat status (Tersedia, Dipinjam, Rusak, Hilang).
+- **Kategori & Status**: Pengelolaan kategori aset dan status kustom.
+- **Peminjaman Aset**: Pengajuan peminjaman oleh pengguna dengan sistem persetujuan admin.
+- **Pengembalian Aset**: Konfirmasi pengembalian aset dengan pengecekan kondisi.
+- **Laporan Komprehensif**: Filter laporan berdasarkan periode, kategori, dan status.
+- **Ekspor Data**: Download data aset, pengguna, peminjaman, dan laporan ke format **Excel (.xlsx)** dan **PDF**.
+- **Manajemen Pengguna & Role**: Kendali akses penuh (Admin, Staff, User) menggunakan Spatie Permission.
+- **Profil Pengguna**: Update informasi profil dan pengaturan keamanan.
+- **Responsif**: Desain yang optimal untuk perangkat desktop maupun mobile.
 
 ---
 
 ## Daftar Route
 
-Berikut adalah contoh route utama yang tersedia (didefinisikan di `routes/web.php`):
+Berikut adalah beberapa route utama aplikasi:
 
-| Metode    | URL                 | Nama Route         | Deskripsi                           |
-| --------- | ------------------- | ------------------ | ----------------------------------- |
-| GET       | `/`                 | `home`             | Halaman beranda/dashboard.          |
-| GET       | `/login`            | `login`            | Form login.                         |
-| POST      | `/login`            | `login.attempt`    | Proses autentikasi.                 |
-| POST      | `/logout`           | `logout`           | Logout pengguna.                    |
-| GET       | `/register`         | `register`         | Form pendaftaran (jika diaktifkan). |
-| POST      | `/register`         | `register.store`   | Simpan pengguna baru.               |
-| GET       | `/assets`           | `assets.index`     | Daftar semua aset.                  |
-| GET       | `/assets/create`    | `assets.create`    | Form tambah aset.                   |
-| POST      | `/assets`           | `assets.store`     | Simpan aset baru.                   |
-| GET       | `/assets/{id}`      | `assets.show`      | Detail aset.                        |
-| GET       | `/assets/{id}/edit` | `assets.edit`      | Form edit aset.                     |
-| PUT/PATCH | `/assets/{id}`      | `assets.update`    | Update aset.                        |
-| DELETE    | `/assets/{id}`      | `assets.destroy`   | Hapus aset.                         |
-| GET       | `/categories`       | `categories.index` | Daftar kategori aset.               |
-| GET       | `/users`            | `users.index`      | Daftar pengguna.                    |
-| GET       | `/users/create`     | `users.create`     | Form tambah pengguna.               |
-| POST      | `/users`            | `users.store`      | Simpan pengguna baru.               |
-| GET       | `/users/{id}`       | `users.show`       | Detail pengguna.                    |
-| GET       | `/users/{id}/edit`  | `users.edit`       | Form edit pengguna.                 |
-| PUT/PATCH | `/users/{id}`       | `users.update`     | Update pengguna.                    |
-| DELETE    | `/users/{id}`       | `users.destroy`    | Hapus pengguna.                     |
-| GET       | `/roles`            | `roles.index`      | Daftar peran.                       |
-| POST      | `/roles/assign`     | `roles.assign`     | Assign peran ke pengguna.           |
-
-> **Catatan**: Route tambahan untuk API (`/api/*`) atau fitur khusus dapat ditemukan di file `routes/api.php`.
+| Metode | URL                        | Nama Route           | Deskripsi                  |
+| ------ | -------------------------- | -------------------- | -------------------------- |
+| GET    | `/dashboard`               | `dashboard`          | Dashboard utama.           |
+| GET    | `/asset`                   | `asset.index`        | Daftar aset.               |
+| POST   | `/asset`                   | `asset.store`        | Tambah aset baru.          |
+| GET    | `/asset/export/excel`      | `asset.export.excel` | Export aset ke Excel.      |
+| GET    | `/asset/export/pdf`        | `asset.export.pdf`   | Export aset ke PDF.        |
+| GET    | `/borrowings`              | `borrowings.index`   | Daftar peminjaman.         |
+| PATCH  | `/borrowings/{id}/approve` | `borrowings.approve` | Setujui peminjaman.        |
+| GET    | `/returns`                 | `returns.index`      | Daftar pengembalian.       |
+| GET    | `/reports`                 | `reports.index`      | Laporan aset & peminjaman. |
+| GET    | `/users`                   | `users.index`        | Manajemen pengguna.        |
+| GET    | `/settings/profile`        | `profile.edit`       | Edit profil pengguna.      |
+| GET    | `/settings/categories`     | `categories.index`   | Kelola kategori aset.      |
+| GET    | `/settings/statuses`       | `statuses.index`     | Kelola status aset.        |
 
 ---
 
 ## Deploy
 
-1. **Build aset**
-    ```bash
-    npm run build
-    ```
+1. **Build aset**: `npm run build`
 2. **Upload repository** ke server produksi.
-3. **Set environment variables** pada server.
-4. **Jalankan migrasi**
+3. **Set environment variables** (.env).
+4. **Jalankan migrasi**: `php artisan migrate --force`
+5. **Set permission**: Pastikan folder `storage` dan `bootstrap/cache` dapat ditulis.
+6. **Optimasi**:
     ```bash
-    php artisan migrate --force
+    php artisan config:cache
+    php artisan route:cache
+    php artisan view:cache
     ```
-5. **Konfigurasi web server** (NGINX/Apache) untuk men‑point ke direktori `public`.
-6. **Opsional**: Gunakan **Supervisor** untuk queue worker dan **Laravel Horizon** untuk Redis queue.
-
-Contoh workflow CI/CD dengan GitHub Actions (`.github/workflows/ci.yml`) sudah disertakan di repo.
 
 ---
 
 ## Kontribusi
 
-Kontribusi sangat kami hargai! Ikuti langkah berikut:
-
-1. Fork repository.
-2. Buat branch fitur: `git checkout -b feature/fitur-anda`.
-3. Tulis kode dan **tambahkan tes**.
-4. Pastikan semua tes lulus.
-5. Buat Pull Request dengan deskripsi perubahan yang jelas.
-
-Harap ikuti standar kode yang ada (PSR‑12 untuk PHP, ESLint/Prettier untuk TypeScript).
+1. Fork Repo.
+2. Create Feature Branch.
+3. Commit Changes.
+4. Push to Branch.
+5. Open Pull Request.
 
 ---
 
 ## Lisensi
 
-Proyek ini dilisensikan di bawah **MIT License** – lihat file [LICENSE](LICENSE) untuk detailnya.
-
----
+Proyek ini dilisensikan di bawah **MIT License**.
