@@ -91,6 +91,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('reports.export.excel');
         Route::get('reports/export/pdf', [ReportController::class, 'exportPdf'])
             ->name('reports.export.pdf');
+        Route::post('reports/export-pdf-email', [ReportController::class, 'exportPdfAndEmail']);
+        Route::post('reports/export-excel-email', [ReportController::class, 'exportExcelAndEmail']);
     });
 
     Route::prefix('settings')->group(function () {

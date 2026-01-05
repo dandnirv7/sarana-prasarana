@@ -17,6 +17,7 @@ import { Download, FileText } from 'lucide-react';
 import { useState } from 'react';
 
 import DatePicker from '@/components/common/date-picker';
+import ExportReportEmailModal from '@/components/reports/ExportEmailModal';
 import { useInertiaFilter } from '@/hooks/use-inertia-filter';
 import dayjs from 'dayjs';
 
@@ -88,6 +89,8 @@ export default function Reports({
 }: ReportsProps) {
     const { errors } = usePage().props as any;
 
+    console.log(borrowings);
+
     const {
         filters: filterState,
         setFilters,
@@ -104,6 +107,9 @@ export default function Reports({
     const [dateEnd, setDateEnd] = useState<string>(
         filterState.end_date || today,
     );
+
+    const [openExportModal, setOpenExportModal] = useState(false);
+    const [exportType, setExportType] = useState<'pdf' | 'excel'>('pdf');
 
     const onSelectStartDate = (value: string) => {
         setDateStart(value);
@@ -183,7 +189,7 @@ export default function Reports({
                                         <SelectValue placeholder="Semua Status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">
+                                        <SelectItem value="semua">
                                             Semua
                                         </SelectItem>
                                         {statusConditions.map((item) => (
@@ -203,12 +209,10 @@ export default function Reports({
                                 <Button
                                     variant="outline"
                                     className="gap-2 bg-transparent"
-                                    onClick={() =>
-                                        window.open(
-                                            '/reports/export/pdf',
-                                            '_blank',
-                                        )
-                                    }
+                                    onClick={() => {
+                                        setExportType('pdf');
+                                        setOpenExportModal(true);
+                                    }}
                                 >
                                     <Download className="h-4 w-4" />
                                     PDF
@@ -222,10 +226,10 @@ export default function Reports({
                                 <Button
                                     variant="outline"
                                     className="gap-2 bg-transparent"
-                                    onClick={() =>
-                                        (window.location.href =
-                                            '/reports/export/excel')
-                                    }
+                                    onClick={() => {
+                                        setExportType('excel');
+                                        setOpenExportModal(true);
+                                    }}
                                 >
                                     <FileText className="h-4 w-4" />
                                     Excel
@@ -378,6 +382,7 @@ export default function Reports({
                                                                 'Hilang'
                                                               ? 'Hilang'
                                                               : 'Belum Dikembalikan'}
+                                                    {/* {item.condition_status} */}
                                                 </Badge>
                                             </td>
                                         </tr>
@@ -393,6 +398,17 @@ export default function Reports({
                         />
                     </CardContent>
                 </Card>
+
+                <ExportReportEmailModal
+                    isOpen={openExportModal}
+                    onClose={() => setOpenExportModal(false)}
+                    exportType={exportType}
+                    filterState={{
+                        startDate: filterState.start_date,
+                        endDate: filterState.end_date,
+                        status: filterState.status,
+                    }}
+                />
 
                 {exportAlert && (
                     <AlertToast
