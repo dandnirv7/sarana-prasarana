@@ -7,8 +7,11 @@ use App\Models\Asset;
 use App\Models\Borrowing;
 use App\Models\Status;
 use App\Models\User;
+use App\Services\PHPMailerService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\View;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -16,16 +19,12 @@ class BorrowingController extends Controller
 {
     private function borrowingStatus(string $name): Status
     {
-        return Status::where('type', 'borrowing')
-            ->where('name', $name)
-            ->firstOrFail();
+        return Status::where('type', 'borrowing')->where('name', $name)->firstOrFail();
     }
 
     private function assetStatus(string $name): Status
     {
-        return Status::where('type', 'asset')
-            ->where('name', $name)
-            ->firstOrFail();
+        return Status::where('type', 'asset')->where('name', $name)->firstOrFail();
     }
 
     public function index(Request $request)
@@ -35,33 +34,28 @@ class BorrowingController extends Controller
             'status' => $request->status ? strtolower($request->status) : null,
         ];
 
-        $borrowings = Borrowing::query()
-            ->with(['user:id,name','asset:id,name,status_id','status:id,name'])
+        $borrowings = Borrowing::with(['user', 'asset', 'status'])
             ->when($filters['search'], function ($q, $search) {
-                $q->where(function ($query) use ($search) {
-                    $query->whereHas('asset', fn($a) => $a->whereRaw('LOWER(name) like ?', ["%{$search}%"]))
-                          ->orWhereHas('user', fn($u) => $u->whereRaw('LOWER(name) like ?', ["%{$search}%"]));
-                });
+                $q->whereHas('user', fn ($u) => $u->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"]))
+                  ->orWhereHas('asset', fn ($a) => $a->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"]));
             })
-            ->when($filters['status'], fn($q,$statusName) =>
-                $q->whereHas('status', fn($s) => $s->whereRaw('LOWER(name) = ?', [$statusName]))
-            )
+            ->when($filters['status'], function ($q, $status) {
+                $q->whereHas('status', fn ($s) => $s->whereRaw('LOWER(name) = ?', [$status]));
+            })
             ->latest()
             ->paginate(10)
             ->withQueryString();
 
-        $users = User::select('id','name')->get();
-
-        $availableAssetStatus = $this->assetStatus('Tersedia');
-        $assets = Asset::where('status_id',$availableAssetStatus->id)->select('id','name')->get();
-
-        $borrowingStatuses = Status::where('type','borrowing')->get();
+        $users = User::select('id', 'name')->get();
+        $assets = Asset::where('status_id', $this->assetStatus('Tersedia')->id)
+            ->select('id', 'name')->get();
+        $statuses = Status::where('type', 'borrowing')->get();
 
         return Inertia::render('borrowings/index', [
             'borrowings' => $borrowings,
             'users' => $users,
             'assets' => $assets,
-            'statuses' => $borrowingStatuses,
+            'statuses' => $statuses,
             'filters' => $filters,
             'auth' => [
                 'user' => $request->user(),
@@ -77,69 +71,17 @@ class BorrowingController extends Controller
             'asset_id' => 'required|exists:assets,id',
             'borrow_date' => 'required|date',
             'return_date' => 'nullable|date|after_or_equal:borrow_date',
-        ], [
-            'user_id.required' => 'User wajib dipilih',
-            'user_id.exists' => 'User tidak valid',
-            'asset_id.required' => 'Aset wajib dipilih',
-            'asset_id.exists' => 'Aset tidak valid',
-            'borrow_date.required' => 'Tanggal pinjam wajib diisi',
-            'borrow_date.date' => 'Tanggal pinjam tidak valid',
-            'return_date.date' => 'Tanggal kembali tidak valid',
-            'return_date.after_or_equal' => 'Tanggal kembali harus sama atau setelah tanggal pinjam',
         ]);
-
-        $pendingStatus = $this->borrowingStatus('Menunggu');
 
         Borrowing::create([
             'user_id' => $validated['user_id'],
             'asset_id' => $validated['asset_id'],
             'borrow_date' => $validated['borrow_date'],
             'return_date' => $validated['return_date'],
-            'status_id' => $pendingStatus->id,
+            'status_id' => $this->borrowingStatus('Menunggu')->id,
         ]);
 
-        return back()->with('success', 'Permintaan peminjaman berhasil dikirim');
-    }
-
-    public function update(Request $request, Borrowing $borrowing)
-    {
-        $validated = $request->validate([
-            'status_id' => 'required|exists:statuses,id',
-        ], [
-            'status_id.required' => 'Status wajib dipilih',
-            'status_id.exists' => 'Status tidak valid',
-        ]);
-
-        $newStatus = Status::findOrFail($validated['status_id']);
-
-        if ($newStatus->type !== 'borrowing') {
-            abort(400, 'Status tidak valid');
-        }
-
-        switch ($newStatus->name) {
-            case 'Disetujui':
-                $borrowing->asset->update([
-                    'status_id' => $this->assetStatus('Dipinjam')->id,
-                ]);
-                break;
-            case 'Ditolak':
-                $borrowing->asset->update([
-                    'status_id' => $this->assetStatus('Tersedia')->id,
-                ]);
-                break;
-            case 'Dikembalikan':
-                $borrowing->asset->update([
-                    'status_id' => $this->assetStatus('Tersedia')->id,
-                ]);
-                $borrowing->update([
-                    'actual_return_date' => now(),
-                ]);
-                break;
-        }
-
-        $borrowing->update(['status_id' => $newStatus->id]);
-
-        return back()->with('success', 'Status peminjaman berhasil diperbarui');
+        return back()->with('success', 'Permintaan peminjaman dikirim');
     }
 
     public function approve(Borrowing $borrowing)
@@ -147,6 +89,7 @@ class BorrowingController extends Controller
         $borrowing->update([
             'status_id' => $this->borrowingStatus('Disetujui')->id,
         ]);
+
         $borrowing->asset->update([
             'status_id' => $this->assetStatus('Dipinjam')->id,
         ]);
@@ -159,6 +102,7 @@ class BorrowingController extends Controller
         $borrowing->update([
             'status_id' => $this->borrowingStatus('Ditolak')->id,
         ]);
+
         $borrowing->asset->update([
             'status_id' => $this->assetStatus('Tersedia')->id,
         ]);
@@ -172,23 +116,99 @@ class BorrowingController extends Controller
             'status_id' => $this->borrowingStatus('Dikembalikan')->id,
             'actual_return_date' => now(),
         ]);
+
         $borrowing->asset->update([
             'status_id' => $this->assetStatus('Tersedia')->id,
         ]);
 
-        return back()->with('success', 'Aset berhasil dikembalikan');
+        return back()->with('success', 'Pengembalian dikonfirmasi');
     }
 
-    public function exportExcel()
+    private function filteredBorrowings(array $filters)
     {
-        return Excel::download(new BorrowingExport(), 'borrowings.xlsx');
+        return Borrowing::with(['user', 'asset', 'status'])
+            ->when(!empty($filters['search']), function ($q) use ($filters) {
+                $search = strtolower($filters['search']);
+                $q->where(function ($query) use ($search) {
+                    $query->whereHas('user', fn ($u) =>
+                        $u->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"])
+                    )->orWhereHas('asset', fn ($a) =>
+                        $a->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"])
+                    );
+                });
+            })
+            ->when(!empty($filters['status']) && strtolower($filters['status']) !== 'semua', function ($q) use ($filters) {
+                $status = strtolower($filters['status']);
+                $q->whereHas('status', fn ($s) => $s->whereRaw('LOWER(name) = ?', [$status]));
+            })
+            ->orderBy('borrow_date', 'desc')
+            ->get();
     }
 
-    public function exportPdf()
+    public function exportPdfAndEmail(Request $request)
     {
-        $borrowings = Borrowing::with(['user','asset','status'])->get();
+        $request->validate(['email' => 'required|email']);
 
-        return Pdf::loadView('pdf.borrowings', compact('borrowings'))
-            ->download('data-peminjaman.pdf');
+        $filters = [
+            'search' => $request->search,
+            'status' => $request->status,
+        ];
+
+        $borrowings = $this->filteredBorrowings($filters);
+
+        $pdf = Pdf::loadView('pdf.borrowings', [
+            'borrowings' => $borrowings,
+            'filters' => $filters,
+            'exportedAt' => Carbon::now()->translatedFormat('d F Y H:i'),
+        ]);
+
+        $path = storage_path('app/temp/borrowings.pdf');
+        if (!file_exists(dirname($path))) mkdir(dirname($path), 0777, true);
+        $pdf->save($path);
+
+        $emailBody = View::make('emails.borrowing-report', [
+            'filters' => $filters,
+            'exportedAt' => Carbon::now()->translatedFormat('d F Y H:i'),
+        ])->render();
+
+        PHPMailerService::send(
+            $request->email,
+            'Laporan Peminjaman Aset',
+            $emailBody,
+            [$path]
+        );
+
+        unlink($path);
+
+        return back()->with('success', 'Laporan PDF berhasil dikirim');
+    }
+
+    public function exportExcelAndEmail(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $filters = [
+            'search' => $request->search,
+            'status' => $request->status,
+        ];
+
+        $path = 'temp/borrowings.xlsx';
+        Excel::store(new BorrowingExport($filters), $path);
+
+        $emailBody = View::make('emails.borrowing-report', [
+            'filters' => $filters,
+            'exportedAt' => Carbon::now()->translatedFormat('d F Y H:i'),
+        ])->render();
+
+        PHPMailerService::send(
+            $request->email,
+            'Laporan Peminjaman Aset',
+            $emailBody,
+            [storage_path("app/{$path}")]
+        );
+
+        unlink(storage_path("app/{$path}"));
+
+        return back()->with('success', 'Laporan Excel berhasil dikirim');
     }
 }

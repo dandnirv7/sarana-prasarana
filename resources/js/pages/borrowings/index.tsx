@@ -1,7 +1,15 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { CheckCircle, Download, Eye, FileText, Plus, XCircle } from 'lucide-react';
+import {
+    CheckCircle,
+    Download,
+    Eye,
+    FileText,
+    Plus,
+    XCircle,
+} from 'lucide-react';
 import { useState } from 'react';
 
+import ExportEmailModal from '@/components/borrowings/ExportEmailModal';
 import AlertToast from '@/components/common/alert-toast';
 import DatePicker from '@/components/common/date-picker';
 import DoubleConfirmationModal from '@/components/common/double-confirmation-modal';
@@ -12,7 +20,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useInertiaFilter } from '@/hooks/use-inertia-filter';
 import AppLayout from '@/layouts/app-layout';
 import borrowings from '@/routes/borrowings';
@@ -74,13 +88,26 @@ interface Filter {
     page?: number;
 }
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Peminjaman', href: borrowings.index.url() }];
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Peminjaman', href: borrowings.index.url() },
+];
 
 const today = dayjs().format('YYYY-MM-DD');
 
-export default function Borrowings({ borrowings, auth, users, assets, statuses }: BorrowingsProps) {
+export default function Borrowings({
+    borrowings,
+    auth,
+    users,
+    assets,
+    statuses,
+}: BorrowingsProps) {
     const permissions: string[] = auth.permissions ?? [];
-    const createForm = useForm({ user_id: '', asset_id: '', borrow_date: '', return_date: '' });
+    const createForm = useForm({
+        user_id: '',
+        asset_id: '',
+        borrow_date: '',
+        return_date: '',
+    });
 
     const pendingBorrowingCount = (borrowings.data as Borrowing[]).filter((p) =>
         ['Menunggu'].includes(p.status.name),
@@ -91,17 +118,27 @@ export default function Borrowings({ borrowings, auth, users, assets, statuses }
     const [approveTarget, setApproveTarget] = useState<Borrowing | null>(null);
     const [rejectTarget, setRejectTarget] = useState<Borrowing | null>(null);
     const [returnTarget, setReturnTarget] = useState<Borrowing | null>(null);
-    const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [alert, setAlert] = useState<{
+        type: 'success' | 'error';
+        message: string;
+    } | null>(null);
+    const [emailModalOpen, setEmailModalOpen] = useState(false);
+    const [exportType, setExportType] = useState<'pdf' | 'excel' | null>(null);
 
-    const { filters: filterState, setFilters, apply } = useInertiaFilter<Filter>('/borrowings', {
+    const {
+        filters: filterState,
+        setFilters,
+        apply,
+    } = useInertiaFilter<Filter>('/borrowings', {
         search: '',
-        status: 'all',
+        status: 'semua',
     });
 
     const isFormValid = () => {
         const { user_id, asset_id, borrow_date, return_date } = createForm.data;
         if (!user_id || !asset_id || !borrow_date) return false;
-        if (return_date && new Date(return_date) < new Date(borrow_date)) return false;
+        if (return_date && new Date(return_date) < new Date(borrow_date))
+            return false;
         return true;
     };
 
@@ -112,8 +149,13 @@ export default function Borrowings({ borrowings, auth, users, assets, statuses }
         if (!user_id) errors.user_id = 'User wajib dipilih';
         if (!asset_id) errors.asset_id = 'Aset wajib dipilih';
         if (!borrow_date) errors.borrow_date = 'Tanggal pinjam wajib diisi';
-        if (return_date && borrow_date && new Date(return_date) < new Date(borrow_date))
-            errors.return_date = 'Tanggal kembali harus sama atau setelah tanggal pinjam';
+        if (
+            return_date &&
+            borrow_date &&
+            new Date(return_date) < new Date(borrow_date)
+        )
+            errors.return_date =
+                'Tanggal kembali harus sama atau setelah tanggal pinjam';
 
         if (Object.keys(errors).length > 0) {
             createForm.setError(errors);
@@ -124,49 +166,81 @@ export default function Borrowings({ borrowings, auth, users, assets, statuses }
             onSuccess: () => {
                 setCreateModalOpen(false);
                 createForm.reset();
-                setAlert({ type: 'success', message: 'Permintaan peminjaman dikirim' });
+                setAlert({
+                    type: 'success',
+                    message: 'Permintaan peminjaman dikirim',
+                });
             },
             onError: (errorsFromServer) => {
                 createForm.setError(errorsFromServer);
-                setAlert({ type: 'error', message: 'Terjadi kesalahan pada form' });
+                setAlert({
+                    type: 'error',
+                    message: 'Terjadi kesalahan pada form',
+                });
             },
         });
     };
 
     const closeCreateModal = () => {
         setCreateModalOpen(false);
-        createForm.setData({ user_id: '', asset_id: '', borrow_date: today, return_date: '' });
+        createForm.setData({
+            user_id: '',
+            asset_id: '',
+            borrow_date: today,
+            return_date: '',
+        });
         createForm.setError({});
     };
 
     const approveBorrowing = () => {
         if (!approveTarget) return;
-        router.patch(`/borrowings/${approveTarget.id}/approve`, {}, {
-            onSuccess: () => {
-                setAlert({ type: 'success', message: 'Peminjaman disetujui' });
-                setApproveTarget(null);
+        router.patch(
+            `/borrowings/${approveTarget.id}/approve`,
+            {},
+            {
+                onSuccess: () => {
+                    setAlert({
+                        type: 'success',
+                        message: 'Peminjaman disetujui',
+                    });
+                    setApproveTarget(null);
+                },
             },
-        });
+        );
     };
 
     const rejectBorrowing = () => {
         if (!rejectTarget) return;
-        router.patch(`/borrowings/${rejectTarget.id}/reject`, {}, {
-            onSuccess: () => {
-                setAlert({ type: 'success', message: 'Peminjaman ditolak' });
-                setRejectTarget(null);
+        router.patch(
+            `/borrowings/${rejectTarget.id}/reject`,
+            {},
+            {
+                onSuccess: () => {
+                    setAlert({
+                        type: 'success',
+                        message: 'Peminjaman ditolak',
+                    });
+                    setRejectTarget(null);
+                },
             },
-        });
+        );
     };
 
     const confirmReturn = () => {
         if (!returnTarget) return;
-        router.patch(`/borrowings/${returnTarget.id}/return`, {}, {
-            onSuccess: () => {
-                setAlert({ type: 'success', message: 'Pengembalian dikonfirmasi' });
-                setReturnTarget(null);
+        router.patch(
+            `/borrowings/${returnTarget.id}/return`,
+            {},
+            {
+                onSuccess: () => {
+                    setAlert({
+                        type: 'success',
+                        message: 'Pengembalian dikonfirmasi',
+                    });
+                    setReturnTarget(null);
+                },
             },
-        });
+        );
     };
 
     return (
@@ -175,7 +249,8 @@ export default function Borrowings({ borrowings, auth, users, assets, statuses }
             <div className="space-y-6 p-6">
                 {pendingBorrowingCount > 0 && (
                     <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300">
-                        Ada {pendingBorrowingCount} permintaan peminjaman yang menunggu persetujuan Anda.
+                        Ada {pendingBorrowingCount} permintaan peminjaman yang
+                        menunggu persetujuan Anda.
                     </div>
                 )}
 
@@ -186,81 +261,158 @@ export default function Borrowings({ borrowings, auth, users, assets, statuses }
                             id="search"
                             placeholder="Cari peminjam atau aset..."
                             value={filterState.search}
-                            onChange={(e) => setFilters({ ...filterState, search: e.target.value })}
+                            onChange={(e) =>
+                                setFilters({
+                                    ...filterState,
+                                    search: e.target.value,
+                                })
+                            }
                         />
                     </div>
                     <div className="flex flex-col gap-2">
-                        <Label htmlFor="status" className="sr-only">Status</Label>
+                        <Label htmlFor="status" className="sr-only">
+                            Status
+                        </Label>
                         <div className="flex gap-2">
                             <Select
-                                value={filterState.status || 'all'}
+                                value={filterState.status || 'semua'}
                                 onValueChange={(value) =>
-                                    setFilters({ ...filterState, status: value === 'all' ? '' : value.toLowerCase(), page: 1 })
+                                    setFilters({
+                                        ...filterState,
+                                        status:
+                                            value === 'semua'
+                                                ? ''
+                                                : value.toLowerCase(),
+                                        page: 1,
+                                    })
                                 }
                             >
                                 <SelectTrigger className="w-full rounded border px-3 py-2">
                                     <SelectValue placeholder="Semua Status" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">Semua Status</SelectItem>
+                                    <SelectItem value="semua">
+                                        Semua Status
+                                    </SelectItem>
                                     {statuses.map((s) => (
-                                        <SelectItem key={s.id} value={s.name.toLowerCase()}>{s.name}</SelectItem>
+                                        <SelectItem
+                                            key={s.id}
+                                            value={s.name.toLowerCase()}
+                                        >
+                                            {s.name}
+                                        </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                             {permissions.includes('borrow asset') && (
-                                <Button onClick={() => setCreateModalOpen(true)}>
-                                    <Plus className="mr-2 h-4 w-4" />Ajukan Peminjaman
+                                <Button
+                                    onClick={() => setCreateModalOpen(true)}
+                                >
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Ajukan Peminjaman
                                 </Button>
                             )}
                             {permissions.includes('manage users') && (
                                 <>
-                                    <Button variant="outline" className="gap-2 bg-transparent" onClick={() => window.open('/borrowings/export/pdf', '_blank')}>
-                                        <Download className="h-4 w-4" />PDF
+                                    <Button
+                                        variant="outline"
+                                        className="gap-2 bg-transparent"
+                                        onClick={() => {
+                                            setExportType('pdf');
+                                            setEmailModalOpen(true);
+                                        }}
+                                    >
+                                        <Download className="h-4 w-4" /> Kirim
+                                        PDF
                                     </Button>
-                                    <Button variant="outline" className="gap-2 bg-transparent" onClick={() => (window.location.href = '/borrowings/export/excel')}>
-                                        <FileText className="h-4 w-4" />Excel
+
+                                    <Button
+                                        variant="outline"
+                                        className="gap-2 bg-transparent"
+                                        onClick={() => {
+                                            setExportType('excel');
+                                            setEmailModalOpen(true);
+                                        }}
+                                    >
+                                        <FileText className="h-4 w-4" /> Kirim
+                                        Excel
                                     </Button>
                                 </>
                             )}
                         </div>
                         {createModalOpen && (
-                            <Modal isOpen title="Ajukan Peminjaman" onClose={closeCreateModal}>
+                            <Modal
+                                isOpen
+                                title="Ajukan Peminjaman"
+                                onClose={closeCreateModal}
+                            >
                                 <div className="space-y-4">
                                     <div>
-                                        <Label className="text-sm font-medium text-muted-foreground">Pilih User</Label>
+                                        <Label className="text-sm font-medium text-muted-foreground">
+                                            Pilih User
+                                        </Label>
                                         <Select
                                             value={createForm.data.user_id}
-                                            onValueChange={(value) => createForm.setData('user_id', value)}
+                                            onValueChange={(value) =>
+                                                createForm.setData(
+                                                    'user_id',
+                                                    value,
+                                                )
+                                            }
                                         >
                                             <SelectTrigger className="w-full">
                                                 <SelectValue placeholder="-- Pilih User --" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {users.map((user) => (
-                                                    <SelectItem key={user.id} value={String(user.id)}>{user.name}</SelectItem>
+                                                    <SelectItem
+                                                        key={user.id}
+                                                        value={String(user.id)}
+                                                    >
+                                                        {user.name}
+                                                    </SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        {createForm.errors.user_id && <p className="text-sm text-red-600">{createForm.errors.user_id}</p>}
+                                        {createForm.errors.user_id && (
+                                            <p className="text-sm text-red-600">
+                                                {createForm.errors.user_id}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div>
-                                        <Label className="text-sm font-medium text-muted-foreground">Pilih Aset</Label>
+                                        <Label className="text-sm font-medium text-muted-foreground">
+                                            Pilih Aset
+                                        </Label>
                                         <Select
                                             value={createForm.data.asset_id}
-                                            onValueChange={(value) => createForm.setData('asset_id', value)}
+                                            onValueChange={(value) =>
+                                                createForm.setData(
+                                                    'asset_id',
+                                                    value,
+                                                )
+                                            }
                                         >
                                             <SelectTrigger className="w-full">
                                                 <SelectValue placeholder="-- Pilih Aset --" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {assets.map((asset) => (
-                                                    <SelectItem key={asset.id} value={String(asset.id)}>{asset.name}</SelectItem>
+                                                    <SelectItem
+                                                        key={asset.id}
+                                                        value={String(asset.id)}
+                                                    >
+                                                        {asset.name}
+                                                    </SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        {createForm.errors.asset_id && <p className="text-sm text-red-600">{createForm.errors.asset_id}</p>}
+                                        {createForm.errors.asset_id && (
+                                            <p className="text-sm text-red-600">
+                                                {createForm.errors.asset_id}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div>
@@ -268,23 +420,51 @@ export default function Borrowings({ borrowings, auth, users, assets, statuses }
                                             label="Tanggal Pinjam"
                                             value={createForm.data.borrow_date}
                                             defaultValue={today}
-                                            onChange={(value) => createForm.setData('borrow_date', value)}
+                                            onChange={(value) =>
+                                                createForm.setData(
+                                                    'borrow_date',
+                                                    value,
+                                                )
+                                            }
                                         />
-                                        {createForm.errors.borrow_date && <p className="text-sm text-red-600">{createForm.errors.borrow_date}</p>}
+                                        {createForm.errors.borrow_date && (
+                                            <p className="text-sm text-red-600">
+                                                {createForm.errors.borrow_date}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div>
                                         <DatePicker
                                             label="Tanggal Kembali"
                                             value={createForm.data.return_date}
-                                            onChange={(value) => createForm.setData('return_date', value)}
+                                            onChange={(value) =>
+                                                createForm.setData(
+                                                    'return_date',
+                                                    value,
+                                                )
+                                            }
                                         />
-                                        {createForm.errors.return_date && <p className="text-sm text-red-600">{createForm.errors.return_date}</p>}
+                                        {createForm.errors.return_date && (
+                                            <p className="text-sm text-red-600">
+                                                {createForm.errors.return_date}
+                                            </p>
+                                        )}
                                     </div>
 
-                                    <div className="flex gap-2 justify-end">
-                                        <Button variant="outline" onClick={closeCreateModal}>Batal</Button>
-                                        <Button onClick={submitBorrowing} disabled={!isFormValid()}>Simpan</Button>
+                                    <div className="flex justify-end gap-2">
+                                        <Button
+                                            variant="outline"
+                                            onClick={closeCreateModal}
+                                        >
+                                            Batal
+                                        </Button>
+                                        <Button
+                                            onClick={submitBorrowing}
+                                            disabled={!isFormValid()}
+                                        >
+                                            Simpan
+                                        </Button>
                                     </div>
                                 </div>
                             </Modal>
@@ -294,55 +474,119 @@ export default function Borrowings({ borrowings, auth, users, assets, statuses }
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Daftar Peminjaman ({borrowings.total})</CardTitle>
+                        <CardTitle>
+                            Daftar Peminjaman ({borrowings.total})
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead>
                                     <tr className="border-b border-border">
-                                        <th className="px-4 py-3 text-left font-semibold">Peminjam</th>
-                                        <th className="px-4 py-3 text-left font-semibold">Aset</th>
-                                        <th className="px-4 py-3 text-left font-semibold">Tgl. Pinjam</th>
-                                        <th className="px-4 py-3 text-left font-semibold">Tgl. Kembali</th>
-                                        <th className="px-4 py-3 text-left font-semibold">Status</th>
-                                        <th className="px-4 py-3 text-left font-semibold">Aksi</th>
+                                        <th className="px-4 py-3 text-left font-semibold">
+                                            Peminjam
+                                        </th>
+                                        <th className="px-4 py-3 text-left font-semibold">
+                                            Aset
+                                        </th>
+                                        <th className="px-4 py-3 text-left font-semibold">
+                                            Tgl. Pinjam
+                                        </th>
+                                        <th className="px-4 py-3 text-left font-semibold">
+                                            Tgl. Kembali
+                                        </th>
+                                        <th className="px-4 py-3 text-left font-semibold">
+                                            Status
+                                        </th>
+                                        <th className="px-4 py-3 text-left font-semibold">
+                                            Aksi
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {borrowings.data.map((b: Borrowing) => (
-                                        <tr key={b.id} className="border-b border-border transition-colors hover:bg-muted/50">
-                                            <td className="px-4 py-3">{b.user.name}</td>
-                                            <td className="px-4 py-3">{b.asset.name}</td>
-                                            <td className="px-4 py-3 text-sm">{b.borrow_date}</td>
-                                            <td className="px-4 py-3 text-sm">{b.return_date ?? '-'}</td>
+                                        <tr
+                                            key={b.id}
+                                            className="border-b border-border transition-colors hover:bg-muted/50"
+                                        >
+                                            <td className="px-4 py-3">
+                                                {b.user.name}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                {b.asset.name}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm">
+                                                {b.borrow_date}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm">
+                                                {b.return_date ?? '-'}
+                                            </td>
                                             <td className="px-4 py-3">
                                                 <Badge
                                                     variant={
-                                                        b.status.name === 'Menunggu' ? 'warning' :
-                                                        b.status.name === 'Disetujui' ? 'success' :
-                                                        b.status.name === 'Dikembalikan' ? 'secondary' : 'destructive'
+                                                        b.status.name ===
+                                                        'Menunggu'
+                                                            ? 'warning'
+                                                            : b.status.name ===
+                                                                'Disetujui'
+                                                              ? 'success'
+                                                              : b.status
+                                                                      .name ===
+                                                                  'Dikembalikan'
+                                                                ? 'secondary'
+                                                                : 'destructive'
                                                     }
                                                 >
                                                     {b.status.name}
                                                 </Badge>
                                             </td>
                                             <td className="flex flex-wrap gap-2 py-2">
-                                                <Button size="icon" variant="ghost" onClick={() => setSelected(b)}>
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    onClick={() =>
+                                                        setSelected(b)
+                                                    }
+                                                >
                                                     <Eye className="h-4 w-4" />
                                                 </Button>
-                                                {b.status.name === 'Menunggu' && (
+                                                {b.status.name ===
+                                                    'Menunggu' && (
                                                     <>
-                                                        <Button size="sm" onClick={() => setApproveTarget(b)}>
-                                                            <CheckCircle className="mr-1 h-4 w-4" />Setujui
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                setApproveTarget(
+                                                                    b,
+                                                                )
+                                                            }
+                                                        >
+                                                            <CheckCircle className="mr-1 h-4 w-4" />
+                                                            Setujui
                                                         </Button>
-                                                        <Button size="sm" variant="destructive" onClick={() => setRejectTarget(b)}>
-                                                            <XCircle className="mr-1 h-4 w-4" />Tolak
+                                                        <Button
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            onClick={() =>
+                                                                setRejectTarget(
+                                                                    b,
+                                                                )
+                                                            }
+                                                        >
+                                                            <XCircle className="mr-1 h-4 w-4" />
+                                                            Tolak
                                                         </Button>
                                                     </>
                                                 )}
-                                                {b.status.name === 'Disetujui' && (
-                                                    <Button size="sm" variant="outline" onClick={() => setReturnTarget(b)}>
+                                                {b.status.name ===
+                                                    'Disetujui' && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() =>
+                                                            setReturnTarget(b)
+                                                        }
+                                                    >
                                                         Konfirmasi Pengembalian
                                                     </Button>
                                                 )}
@@ -353,35 +597,60 @@ export default function Borrowings({ borrowings, auth, users, assets, statuses }
                             </table>
                         </div>
 
-                        <Pagination currentPage={borrowings.current_page} totalPages={borrowings.last_page} onPageChange={(page) => apply({ page })} />
+                        <Pagination
+                            currentPage={borrowings.current_page}
+                            totalPages={borrowings.last_page}
+                            onPageChange={(page) => apply({ page })}
+                        />
                     </CardContent>
                 </Card>
 
                 {selected && (
-                    <Modal isOpen title="Detail Peminjaman" onClose={() => setSelected(null)}>
+                    <Modal
+                        isOpen
+                        title="Detail Peminjaman"
+                        onClose={() => setSelected(null)}
+                    >
                         <div className="space-y-4">
                             <div>
-                                <Label className="text-sm font-medium text-muted-foreground">Nama Peminjam</Label>
+                                <Label className="text-sm font-medium text-muted-foreground">
+                                    Nama Peminjam
+                                </Label>
                                 <p>{selected.user.name}</p>
                             </div>
                             <div>
-                                <Label className="text-sm font-medium text-muted-foreground">Nama Aset</Label>
+                                <Label className="text-sm font-medium text-muted-foreground">
+                                    Nama Aset
+                                </Label>
                                 <p>{selected.asset.name}</p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <Label className="text-sm font-medium text-muted-foreground">Tanggal Pinjam</Label>
+                                    <Label className="text-sm font-medium text-muted-foreground">
+                                        Tanggal Pinjam
+                                    </Label>
                                     <p>{selected.borrow_date}</p>
                                 </div>
                                 <div>
-                                    <Label className="text-sm font-medium text-muted-foreground">Tanggal Kembali</Label>
+                                    <Label className="text-sm font-medium text-muted-foreground">
+                                        Tanggal Kembali
+                                    </Label>
                                     <p>{selected.return_date}</p>
                                 </div>
                             </div>
-                            <div className="flex gap-2 items-center">
-                                <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                            <div className="flex items-center gap-2">
+                                <Label className="text-sm font-medium text-muted-foreground">
+                                    Status
+                                </Label>
                                 <Badge
-                                    variant={selected.status.name === 'Menunggu' ? 'warning' : selected.status.name === 'Disetujui' ? 'success' : 'destructive'}
+                                    variant={
+                                        selected.status.name === 'Menunggu'
+                                            ? 'warning'
+                                            : selected.status.name ===
+                                                'Disetujui'
+                                              ? 'success'
+                                              : 'destructive'
+                                    }
                                     className="mt-1"
                                 >
                                     {selected.status.name}
@@ -416,7 +685,27 @@ export default function Borrowings({ borrowings, auth, users, assets, statuses }
                     onCancel={() => setReturnTarget(null)}
                 />
 
-                {alert && <AlertToast type={alert.type} message={alert.message} onClose={() => setAlert(null)} />}
+                <ExportEmailModal
+                    isOpen={emailModalOpen}
+                    onClose={() => setEmailModalOpen(false)}
+                    exportType={'excel'}
+                    filterState={filterState}
+                />
+
+                <ExportEmailModal
+                    isOpen={emailModalOpen}
+                    onClose={() => setEmailModalOpen(false)}
+                    exportType={'pdf'}
+                    filterState={filterState}
+                />
+
+                {alert && (
+                    <AlertToast
+                        type={alert.type}
+                        message={alert.message}
+                        onClose={() => setAlert(null)}
+                    />
+                )}
             </div>
         </AppLayout>
     );

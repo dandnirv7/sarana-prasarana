@@ -68,6 +68,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('borrowings.export.excel');
         Route::get('borrowings/export/pdf', [BorrowingController::class, 'exportPdf'])
             ->name('borrowings.export.pdf');
+        Route::post('borrowings/export-pdf-email', [BorrowingController::class, 'exportPdfAndEmail']);
+        Route::post('borrowings/export-excel-email', [BorrowingController::class, 'exportExcelAndEmail']);
     });
 
     Route::middleware('permission:return asset')->group(function () {
