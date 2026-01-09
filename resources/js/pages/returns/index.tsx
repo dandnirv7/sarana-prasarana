@@ -74,34 +74,35 @@ export default function Returns() {
         type: 'success' | 'error';
         message: string;
     } | null>(null);
-    
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<AssetReturn | null>(null);
     const createForm = useForm({
-        'asset_condition': '',
-        'note': '',
-    })
+        asset_condition: '',
+        note: '',
+    });
 
     const [returnConfirm, setReturnConfirm] = useState<AssetReturn | null>(
         null,
     );
 
-    console.log('halo')
+    console.log('halo');
 
-    const { filters: filterState, setFilters, apply } = useInertiaFilter<Filter>(
-        '/returns',
-        {
-            search: '',
-            status: 'all',
-        },
-    );
-
+    const {
+        filters: filterState,
+        setFilters,
+        apply,
+    } = useInertiaFilter<Filter>('/returns', {
+        search: '',
+        status: 'semua',
+    });
 
     const handleSubmitReturn = () => {
         if (!selectedItem) {
             setAlert({
                 type: 'error',
-                message: 'Tidak ada item yang dipilih, silahkan pilih item terlebih dahulu.',
+                message:
+                    'Tidak ada item yang dipilih, silahkan pilih item terlebih dahulu.',
             });
             return;
         }
@@ -144,12 +145,13 @@ export default function Returns() {
             <Head title="Riwayat Pengembalian Aset" />
 
             <div className="space-y-6 p-6">
-                {pendingReturnCount > 0 && (
-                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300">
-                        Ada {pendingReturnCount} aset yang belum dikembalikan
-                        dan menunggu konfirmasi.
-                    </div>
-                )}
+                {permissions.includes('manage users') &&
+                    pendingReturnCount > 0 && (
+                        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300">
+                            Ada {pendingReturnCount} aset yang belum
+                            dikembalikan dan menunggu konfirmasi.
+                        </div>
+                    )}
 
                 <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
                     <div className="max-w-md flex-1">
@@ -158,7 +160,12 @@ export default function Returns() {
                             id="search"
                             placeholder="Cari peminjam atau aset..."
                             value={filterState.search}
-                            onChange={(e) => setFilters({ ...filterState, search: e.target.value })}
+                            onChange={(e) =>
+                                setFilters({
+                                    ...filterState,
+                                    search: e.target.value,
+                                })
+                            }
                         />
                     </div>
 
@@ -167,18 +174,36 @@ export default function Returns() {
                         <div className="flex gap-2">
                             <Select
                                 value={filterState.status}
-                                onValueChange={(value) => setFilters({ ...filterState, status: value === 'all' ? '' : value.toLowerCase() })}
+                                onValueChange={(value) =>
+                                    setFilters({
+                                        ...filterState,
+                                        status:
+                                            value === 'semua'
+                                                ? ''
+                                                : value.toLowerCase(),
+                                    })
+                                }
                             >
                                 <SelectTrigger className="w-[200px]">
                                     <SelectValue placeholder="Semua Status" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all" disabled={filterState.status === 'all'}>Semua Status</SelectItem>
+                                    <SelectItem
+                                        value="semua"
+                                        disabled={
+                                            filterState.status === 'semua'
+                                        }
+                                    >
+                                        Semua Status
+                                    </SelectItem>
                                     {borrowingStatuses.map((s: Status) => (
                                         <SelectItem
                                             key={s.id}
                                             value={s.name.toLowerCase()}
-                                            disabled={filterState.status === s.name.toLowerCase()}
+                                            disabled={
+                                                filterState.status ===
+                                                s.name.toLowerCase()
+                                            }
                                         >
                                             {s.name}
                                         </SelectItem>
@@ -244,9 +269,13 @@ export default function Returns() {
                                         <th className="px-4 py-3 text-left">
                                             Status
                                         </th>
-                                        <th className="px-4 py-3 text-left">
-                                            Aksi
-                                        </th>
+                                        {permissions.includes(
+                                            'manage users',
+                                        ) && (
+                                            <th className="px-4 py-3 text-left">
+                                                Aksi
+                                            </th>
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -284,20 +313,31 @@ export default function Returns() {
                                                                 .name ===
                                                             'Dikembalikan'
                                                                 ? 'success'
-                                                                : r.borrowing.status.name === 'Menunggu Pengembalian'
+                                                                : r.borrowing
+                                                                        .status
+                                                                        .name ===
+                                                                    'Menunggu Pengembalian'
                                                                   ? 'warning'
                                                                   : 'default'
                                                         }
                                                     >
-                                                        {r.borrowing.status.name}
+                                                        {!permissions.includes(
+                                                            'manage users',
+                                                        ) &&
+                                                        r.borrowing.status
+                                                            .name ===
+                                                            'Menunggu Pengembalian'
+                                                            ? 'Menunggu Konfirmasi'
+                                                            : r.borrowing.status
+                                                                  .name}
                                                     </Badge>
                                                 </td>
 
                                                 {permissions.includes(
-                                                    'return asset',
+                                                    'manage users',
                                                 ) &&
                                                     r.borrowing.status.name ===
-                                                    'Menunggu Pengembalian' && (
+                                                        'Menunggu Pengembalian' && (
                                                         <td className="px-4 py-3">
                                                             <Button
                                                                 size="sm"
@@ -349,7 +389,12 @@ export default function Returns() {
                                 <Label>Kondisi Aset</Label>
                                 <Select
                                     value={createForm.data.asset_condition}
-                                    onValueChange={(value) => createForm.setData('asset_condition', value)}
+                                    onValueChange={(value) =>
+                                        createForm.setData(
+                                            'asset_condition',
+                                            value,
+                                        )
+                                    }
                                 >
                                     <SelectTrigger className="w-full">
                                         <SelectValue placeholder="Pilih kondisi aset" />
@@ -371,7 +416,12 @@ export default function Returns() {
                                 <Label>Catatan</Label>
                                 <textarea
                                     value={createForm.data.note}
-                                    onChange={(e) => createForm.setData('note', e.target.value)}
+                                    onChange={(e) =>
+                                        createForm.setData(
+                                            'note',
+                                            e.target.value,
+                                        )
+                                    }
                                     className="w-full rounded border px-3 py-2"
                                     placeholder="Masukkan catatan (opsional)"
                                 />

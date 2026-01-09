@@ -34,7 +34,7 @@ export default function DoubleConfirmationModal({
 
     const handleSecondConfirm = () => {
         onConfirm();
-        onCancel()
+        onCancel();
     };
 
     const handleClose = () => {
@@ -42,46 +42,52 @@ export default function DoubleConfirmationModal({
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title={title}>
-            <div className="space-y-4">
-                <div className="flex gap-3">
-                    <AlertCircle
-                        className={`h-5 w-5 flex-shrink-0 ${isDangerous ? 'text-red-500' : 'text-yellow-500'}`}
-                        aria-hidden="true"
-                    />
-                    <p className="text-sm text-foreground">
-                        {step === 'first'
-                            ? message
-                            : 'Mohon konfirmasi lagi untuk melanjutkan tindakan ini.'}
-                    </p>
-                </div>
-                <div className="flex justify-end gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={handleClose}
-                        aria-label={`${cancelText} tindakan ${title.toLowerCase()}`}
-                    >
-                        {cancelText}
-                    </Button>
-                    {step === 'first' ? (
+        <div>
+            <Modal isOpen={isOpen} onClose={handleClose} title={title}>
+                <div className="space-y-4">
+                    <div className="flex gap-3">
+                        <AlertCircle
+                            className={`h-5 w-5 flex-shrink-0 ${isDangerous ? 'text-red-500' : 'text-yellow-500'}`}
+                            aria-hidden="true"
+                        />
+                        <p className="text-sm text-foreground">
+                            {step === 'first'
+                                ? message
+                                : 'Mohon konfirmasi lagi untuk melanjutkan tindakan ini.'}
+                        </p>
+                    </div>
+                    <div className="flex justify-end gap-2">
                         <Button
-                            onClick={handleFirstConfirm}
-                            variant={isDangerous ? 'destructive' : 'default'}
-                            aria-label={`Konfirmasi pertama untuk ${title.toLowerCase()}`}
+                            variant="outline"
+                            onClick={handleClose}
+                            aria-label={`${cancelText} tindakan ${title.toLowerCase()}`}
                         >
-                            {confirmText}
+                            {cancelText}
                         </Button>
-                    ) : (
-                        <Button
-                            onClick={handleSecondConfirm}
-                            variant={isDangerous ? 'destructive' : 'default'}
-                            aria-label={`Konfirmasi kedua untuk ${title.toLowerCase()}`}
-                        >
-                            Konfirmasi Lagi
-                        </Button>
-                    )}
+                        {step === 'first' ? (
+                            <Button
+                                onClick={handleFirstConfirm}
+                                variant={
+                                    isDangerous ? 'destructive' : 'default'
+                                }
+                                aria-label={`Konfirmasi pertama untuk ${title.toLowerCase()}`}
+                            >
+                                {confirmText}
+                            </Button>
+                        ) : (
+                            <Button
+                                onClick={handleSecondConfirm}
+                                variant={
+                                    isDangerous ? 'destructive' : 'default'
+                                }
+                                aria-label={`Konfirmasi kedua untuk ${title.toLowerCase()}`}
+                            >
+                                Konfirmasi Lagi
+                            </Button>
+                        )}
+                    </div>
                 </div>
-            </div>
-        </Modal>
+            </Modal>
+        </div>
     );
 }

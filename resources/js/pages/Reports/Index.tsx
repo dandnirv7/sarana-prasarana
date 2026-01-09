@@ -19,6 +19,7 @@ import { useState } from 'react';
 import DatePicker from '@/components/common/date-picker';
 import ExportReportEmailModal from '@/components/reports/ExportEmailModal';
 import { useInertiaFilter } from '@/hooks/use-inertia-filter';
+import { BreadcrumbItem } from '@/types';
 import dayjs from 'dayjs';
 
 interface User {
@@ -81,6 +82,8 @@ interface ReportsProps {
 
 const today = dayjs().format('YYYY-MM-DD');
 
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Laporan', href: '/reports' }];
+
 export default function Reports({
     borrowings,
     stats,
@@ -88,8 +91,6 @@ export default function Reports({
     statusConditions,
 }: ReportsProps) {
     const { errors } = usePage().props as any;
-
-    console.log(borrowings);
 
     const {
         filters: filterState,
@@ -121,24 +122,13 @@ export default function Reports({
         setFilters({ ...filterState, end_date: value });
     };
 
-    const [openStart, setOpenStart] = useState(false);
-    const [openEnd, setOpenEnd] = useState(false);
-
     const [exportAlert, setExportAlert] = useState<{
         type: 'success' | 'error';
         message: string;
     } | null>(null);
 
-    const formatDate = (date?: Date) => {
-        if (!date) return '';
-        const yyyy = date.getFullYear();
-        const mm = String(date.getMonth() + 1).padStart(2, '0');
-        const dd = String(date.getDate()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}`;
-    };
-
     return (
-        <AppLayout>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Laporan" />
             <div className="space-y-6 p-4">
                 <Card>

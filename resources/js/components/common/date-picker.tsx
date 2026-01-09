@@ -62,7 +62,7 @@ export default function DatePickerField({
     }, [value]);
 
     return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1">
             <Label className="text-sm font-medium text-muted-foreground">
                 {label}
             </Label>
