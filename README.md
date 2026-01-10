@@ -28,9 +28,10 @@ Sarana Prasarana membantu organisasi melacak aset fisik mereka (misalnya peralat
 
 - **Manajemen Aset & Kategori** yang lengkap.
 - **Peminjaman & Pengembalian** aset dengan alur persetujuan.
+- **Notifikasi Otomatis** melalui email untuk setiap perubahan status peminjaman.
 - **Manajemen Pengguna** dengan izin berbasis peran (menggunakan Spatie Laravel Permission).
 - **Laporan & Statistik** dengan visualisasi data interaktif.
-- **Export Data** ke format Excel dan PDF.
+- **Eksport & Distribusi** data ke format Excel, PDF, dan pengiriman laporan via email.
 - **UI Modern** menggunakan Tailwind CSS 4 dan Radix UI.
 
 ---
@@ -46,6 +47,7 @@ Sarana Prasarana membantu organisasi melacak aset fisik mereka (misalnya peralat
 | Izin        | Spatie Laravel Permission                      |
 | Visualisasi | Recharts                                       |
 | Ekspor      | Laravel Excel (Maatwebsite), Laravel DOMPDF    |
+| Email       | PHPMailer 7                                    |
 | UI Library  | Radix UI, Lucide React, Shadcn UI (Components) |
 | Pengujian   | PHPUnit, Pest                                  |
 
@@ -54,7 +56,7 @@ Sarana Prasarana membantu organisasi melacak aset fisik mereka (misalnya peralat
 ## Prasyarat
 
 - **Node.js** (>= 20.x) dan **npm**
-- **PHP** (>= 8.2) dengan Composer
+- **PHP** (>= 8.2) dengan Composer (ext-gd, ext-zip diperlukan untuk Excel/PDF)
 - **Database** (MySQL 8.x atau PostgreSQL 13+)
 - **Git**
 
@@ -84,7 +86,16 @@ npm install
     cp .env.example .env
     ```
 
-    Sesuaikan `.env` dengan kredensial database, `APP_URL`, dsb.
+    Sesuaikan `.env` dengan kredensial database, `APP_URL`, dan konfigurasi SMTP untuk email:
+
+    ```env
+    MAIL_HOST=smtp.mailtrap.io
+    MAIL_PORT=2525
+    MAIL_USERNAME=your_username
+    MAIL_PASSWORD=your_password
+    MAIL_FROM_ADDRESS="info@saranaprasarana.com"
+    MAIL_FROM_NAME="${APP_NAME}"
+    ```
 
 2. **Generate key aplikasi**
 
@@ -153,9 +164,11 @@ php artisan test
 - **Manajemen Aset**: CRUD aset dengan riwayat status (Tersedia, Dipinjam, Rusak, Hilang).
 - **Kategori & Status**: Pengelolaan kategori aset dan status kustom.
 - **Peminjaman Aset**: Pengajuan peminjaman oleh pengguna dengan sistem persetujuan admin.
-- **Pengembalian Aset**: Konfirmasi pengembalian aset dengan pengecekan kondisi.
+- **Notifikasi Email**: Email otomatis dikirim saat peminjaman disetujui, ditolak, atau dikonfirmasi kembali.
+- **Pengembalian Aset**: Konfirmasi pengembalian aset dengan pengecekan kondisi (Baik/Rusak/Perbaikan).
 - **Laporan Komprehensif**: Filter laporan berdasarkan periode, kategori, dan status.
 - **Ekspor Data**: Download data aset, pengguna, peminjaman, dan laporan ke format **Excel (.xlsx)** dan **PDF**.
+- **Kirim Laporan via Email**: Fitur untuk mengirim laporan PDF/Excel langsung ke alamat email tujuan.
 - **Manajemen Pengguna & Role**: Kendali akses penuh (Admin, Staff, User) menggunakan Spatie Permission.
 - **Profil Pengguna**: Update informasi profil dan pengaturan keamanan.
 - **Responsif**: Desain yang optimal untuk perangkat desktop maupun mobile.
@@ -166,21 +179,25 @@ php artisan test
 
 Berikut adalah beberapa route utama aplikasi:
 
-| Metode | URL                        | Nama Route           | Deskripsi                  |
-| ------ | -------------------------- | -------------------- | -------------------------- |
-| GET    | `/dashboard`               | `dashboard`          | Dashboard utama.           |
-| GET    | `/asset`                   | `asset.index`        | Daftar aset.               |
-| POST   | `/asset`                   | `asset.store`        | Tambah aset baru.          |
-| GET    | `/asset/export/excel`      | `asset.export.excel` | Export aset ke Excel.      |
-| GET    | `/asset/export/pdf`        | `asset.export.pdf`   | Export aset ke PDF.        |
-| GET    | `/borrowings`              | `borrowings.index`   | Daftar peminjaman.         |
-| PATCH  | `/borrowings/{id}/approve` | `borrowings.approve` | Setujui peminjaman.        |
-| GET    | `/returns`                 | `returns.index`      | Daftar pengembalian.       |
-| GET    | `/reports`                 | `reports.index`      | Laporan aset & peminjaman. |
-| GET    | `/users`                   | `users.index`        | Manajemen pengguna.        |
-| GET    | `/settings/profile`        | `profile.edit`       | Edit profil pengguna.      |
-| GET    | `/settings/categories`     | `categories.index`   | Kelola kategori aset.      |
-| GET    | `/settings/statuses`       | `statuses.index`     | Kelola status aset.        |
+| Metode | URL                            | Nama Route              | Deskripsi                              |
+| ------ | ------------------------------ | ----------------------- | -------------------------------------- |
+| GET    | `/dashboard`                   | `dashboard`             | Dashboard utama.                       |
+| GET    | `/asset`                       | `asset.index`           | Daftar aset.                           |
+| GET    | `/asset/export/excel`          | `asset.export.excel`    | Export aset ke Excel.                  |
+| GET    | `/asset/export/pdf`            | `asset.export.pdf`      | Export aset ke PDF.                    |
+| GET    | `/borrowings`                  | `borrowings.index`      | Daftar peminjaman.                     |
+| PATCH  | `/borrowings/{id}/approve`     | `borrowings.approve`    | Setujui peminjaman & kirim email.      |
+| PATCH  | `/borrowings/{id}/reject`      | `borrowings.reject`     | Tolak peminjaman & kirim email.        |
+| POST   | `/borrowings/export-pdf-email` | -                       | Kirim laporan peminjaman PDF ke email. |
+| GET    | `/returns`                     | `returns.index`         | Daftar pengembalian.                   |
+| PATCH  | `/returns/{id}/return`         | `returns.confirmReturn` | Konfirmasi pengembalian & kondisi.     |
+| GET    | `/reports`                     | `reports.index`         | Laporan aset & peminjaman.             |
+| GET    | `/reports/export/excel`        | `reports.export.excel`  | Export laporan ke Excel.               |
+| GET    | `/users`                       | `users.index`           | Manajemen pengguna.                    |
+| GET    | `/users/export/excel`          | `users.export.excel`    | Export daftar pengguna ke Excel.       |
+| GET    | `/settings/profile`            | `profile.edit`          | Edit profil pengguna.                  |
+| GET    | `/settings/categories`         | `categories.index`      | Kelola kategori aset.                  |
+| GET    | `/settings/statuses`           | `statuses.index`        | Kelola status aset.                    |
 
 ---
 
