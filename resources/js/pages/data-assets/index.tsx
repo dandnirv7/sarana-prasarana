@@ -1,15 +1,8 @@
 'use client';
 
 import { Head, router, usePage } from '@inertiajs/react';
-import {
-    ChevronsUpDown,
-    Download,
-    Edit2,
-    FileText,
-    Plus,
-    Trash2,
-} from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Download, Edit2, FileText, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 
 import AlertToast from '@/components/common/alert-toast';
 import DoubleConfirmationModal from '@/components/common/double-confirmation-modal';
@@ -19,24 +12,18 @@ import AssetForm from '@/components/forms/asset-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandItem,
-} from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/components/ui/popover';
-import AppLayout from '@/layouts/app-layout';
-import { can } from '@/lib/permission';
-import { BreadcrumbItem } from '@/types';
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useInertiaFilter } from '@/hooks/use-inertia-filter';
+import AppLayout from '@/layouts/app-layout';
+import { BreadcrumbItem } from '@/types';
 
 interface AssetItem {
     id: number;
@@ -47,7 +34,7 @@ interface AssetItem {
     status_id: number;
     status_name: string;
     image?: string;
-};
+}
 
 type Filter = {
     search?: string;
@@ -58,8 +45,7 @@ type Filter = {
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Aset', href: '/asset' }];
 
 export default function Assets() {
-    const { assets, categories, assetStatuses, auth } = usePage()
-        .props as any;
+    const { assets, categories, assetStatuses, auth } = usePage().props as any;
     const permissions: string[] = auth.permissions ?? [];
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -67,10 +53,14 @@ export default function Assets() {
     const [deleteConfirm, setDeleteConfirm] = useState<AssetItem | null>(null);
     const [alert, setAlert] = useState<any>(null);
 
-    const { filters: filterState, setFilters, apply } = useInertiaFilter<Filter>('/asset', {
+    const {
+        filters: filterState,
+        setFilters,
+        apply,
+    } = useInertiaFilter<Filter>('/asset', {
         search: '',
-        kategori: '',
-        status: 'all',
+        kategori: 'semua',
+        status: 'semua',
     });
 
     const handleDelete = () => {
@@ -97,88 +87,138 @@ export default function Assets() {
             <div className="space-y-6 p-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div className="max-w-md flex-1">
-                        <Label htmlFor='search'>Cari Aset</Label>
+                        <Label htmlFor="search">Cari Aset</Label>
                         <Input
                             placeholder="Cari nama aset..."
                             value={filterState.search}
-                            onChange={(e) => setFilters({ ...filterState, search: e.target.value })}
+                            onChange={(e) =>
+                                setFilters({
+                                    ...filterState,
+                                    search: e.target.value,
+                                })
+                            }
                         />
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <Label htmlFor="status" className="sr-only">Status</Label>
+                        <Label htmlFor="status" className="sr-only">
+                            Status
+                        </Label>
                         <div className="flex gap-2">
                             <Select
-                                value={filterState.kategori || 'all'}
+                                value={filterState.kategori || 'semua'}
                                 onValueChange={(value) =>
-                                    setFilters({ kategori: value === 'all' ? '' : value.toLowerCase() })
+                                    setFilters({
+                                        kategori:
+                                            value === 'semua'
+                                                ? ''
+                                                : value.toLowerCase(),
+                                    })
                                 }
                             >
                                 <SelectTrigger className="w-full rounded border px-3 py-2">
-                                    <SelectValue 
-                                    placeholder="Semua Kategori" />
+                                    <SelectValue placeholder="Semua Kategori" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">Semua Kategori</SelectItem>
-                                    {categories.map((s:{id: number; name: string}) => (
-                                        <SelectItem key={s.id} value={s.name.toLowerCase()}>{s.name}</SelectItem>
-                                    ))}
+                                    <SelectItem
+                                        value="semua"
+                                        disabled={filterState.kategori === ''}
+                                    >
+                                        Semua Kategori
+                                    </SelectItem>
+                                    {categories.map(
+                                        (s: { id: number; name: string }) => (
+                                            <SelectItem
+                                                key={s.id}
+                                                value={s.name.toLowerCase()}
+                                                disabled={
+                                                    filterState.kategori ===
+                                                    s.name.toLowerCase()
+                                                }
+                                            >
+                                                {s.name}
+                                            </SelectItem>
+                                        ),
+                                    )}
                                 </SelectContent>
                             </Select>
+
                             <Select
-                                value={filterState.status || 'all'}
+                                value={filterState.status || 'semua'}
                                 onValueChange={(value) =>
-                                    setFilters({ status: value === 'all' ? '' : value.toLowerCase() })
+                                    setFilters({
+                                        status:
+                                            value === 'semua'
+                                                ? ''
+                                                : value.toLowerCase(),
+                                    })
                                 }
                             >
                                 <SelectTrigger className="w-full rounded border px-3 py-2">
                                     <SelectValue placeholder="Semua Status" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">Semua Status</SelectItem>
-                                    {assetStatuses.map((s: { id: number; name: string }) => (
-                                        <SelectItem key={s.id} value={s.name.toLowerCase()}>{s.name}</SelectItem>
-                                    ))}
+                                    <SelectItem
+                                        value="semua"
+                                        disabled={filterState.status === ''}
+                                    >
+                                        Semua Status
+                                    </SelectItem>
+                                    {assetStatuses.map(
+                                        (s: { id: number; name: string }) => (
+                                            <SelectItem
+                                                key={s.id}
+                                                value={s.name.toLowerCase()}
+                                                disabled={
+                                                    filterState.status ===
+                                                    s.name.toLowerCase()
+                                                }
+                                            >
+                                                {s.name}
+                                            </SelectItem>
+                                        ),
+                                    )}
                                 </SelectContent>
                             </Select>
-                        {permissions.includes('manage assets') && (
-                            <Button
-                                onClick={() => {
-                                    setEditingAsset(null);
-                                    setIsModalOpen(true);
-                                }}
-                                className="gap-2"
-                            >
-                                <Plus className="h-4 w-4" /> Tambah Aset
-                            </Button>
-                        )}
 
-                        {permissions.includes('manage assets') && (
-                            <>
+                            {permissions.includes('manage assets') && (
                                 <Button
-                                    variant="outline"
+                                    onClick={() => {
+                                        setEditingAsset(null);
+                                        setIsModalOpen(true);
+                                    }}
                                     className="gap-2"
-                                    onClick={() =>
-                                        window.open(
-                                            '/asset/export/pdf',
-                                            '_blank',
-                                        )
-                                    }
                                 >
-                                    <Download className="h-4 w-4" /> PDF
+                                    <Plus className="h-4 w-4" /> Tambah Aset
                                 </Button>
-                                <Button
-                                    variant="outline"
-                                    className="gap-2"
-                                    onClick={() =>
-                                        (window.location.href =
-                                            '/asset/export/excel')
-                                    }
-                                >
-                                    <FileText className="h-4 w-4" /> Excel
-                                </Button>
-                            </>
-                        )}
+                            )}
+
+                            {permissions.includes('manage assets') && (
+                                <>
+                                    <Button
+                                        variant="outline"
+                                        className="gap-2"
+                                        onClick={() =>
+                                            window.open(
+                                                '/asset/export/pdf',
+                                                '_blank',
+                                            )
+                                        }
+                                    >
+                                        <Download className="h-4 w-4" /> PDF
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="gap-2"
+                                        onClick={() =>
+                                            (window.location.href =
+                                                '/asset/export/excel')
+                                        }
+                                    >
+                                        <FileText className="h-4 w-4" /> Excel
+                                    </Button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -197,7 +237,9 @@ export default function Assets() {
                                         <th className="px-4 py-3">Kategori</th>
                                         <th className="px-4 py-3">Kondisi</th>
                                         <th className="px-4 py-3">Status</th>
-                                        {permissions.includes('manage assets') && (
+                                        {permissions.includes(
+                                            'manage assets',
+                                        ) && (
                                             <th className="px-4 py-3">Aksi</th>
                                         )}
                                     </tr>
@@ -242,8 +284,9 @@ export default function Assets() {
                                                     {asset.status_name}
                                                 </Badge>
                                             </td>
-                                            {
-                                                permissions.includes('manage assets') && (
+                                            {permissions.includes(
+                                                'manage assets',
+                                            ) && (
                                                 <td className="flex gap-2 px-4 py-3">
                                                     <button
                                                         onClick={() =>

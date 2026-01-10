@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exports\BorrowingExport;
 use App\Models\Asset;
+use App\Models\AssetReturn;
 use App\Models\Borrowing;
 use App\Models\Status;
 use App\Models\User;
@@ -34,7 +35,12 @@ class BorrowingController extends Controller
             'status' => $request->status ? strtolower($request->status) : null,
         ];
 
+        $user = $request->user();
+
         $borrowings = Borrowing::with(['user', 'asset', 'status'])
+            ->when(!$user->can('manage users'), function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+            })
             ->when($filters['search'], function ($q, $search) {
                 $q->whereHas('user', fn ($u) => $u->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"]))
                   ->orWhereHas('asset', fn ($a) => $a->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"]));
@@ -94,8 +100,23 @@ class BorrowingController extends Controller
             'status_id' => $this->assetStatus('Dipinjam')->id,
         ]);
 
-        return back()->with('success', 'Peminjaman disetujui');
+        AssetReturn::create([
+            'borrowing_id' => $borrowing->id,
+            'return_date_actual' => null,
+            'asset_condition' => null,
+            'note' => null,
+        ]);
+
+        $user = $borrowing->user;
+        $asset = $borrowing->asset;
+
+        $html = view('emails.borrowing-approved', compact('user', 'asset', 'borrowing'))->render();
+
+        PHPMailerService::send($user->email, 'Peminjaman Aset Disetujui', $html);
+
+        return back()->with('success', 'Peminjaman disetujui dan email dikirim ke user');
     }
+
 
     public function reject(Borrowing $borrowing)
     {
@@ -107,8 +128,16 @@ class BorrowingController extends Controller
             'status_id' => $this->assetStatus('Tersedia')->id,
         ]);
 
-        return back()->with('success', 'Peminjaman ditolak');
+        $user = $borrowing->user;
+        $asset = $borrowing->asset;
+
+        $html = view('emails.borrowing-rejected', compact('user', 'asset'))->render();
+
+        PHPMailerService::send($user->email, 'Peminjaman Aset Ditolak', $html);
+
+        return back()->with('success', 'Peminjaman ditolak dan email dikirim ke user');
     }
+
 
     public function confirmReturn(Borrowing $borrowing)
     {
@@ -121,8 +150,21 @@ class BorrowingController extends Controller
             'status_id' => $this->assetStatus('Tersedia')->id,
         ]);
 
-        return back()->with('success', 'Pengembalian dikonfirmasi');
+        $user = $borrowing->user;
+        $asset = $borrowing->asset;
+
+        $html = view('emails.borrowing-returned', [
+            'user' => $user,
+            'asset' => $asset,
+            'asset_condition' => 'Baik',
+            'note' => null,
+        ])->render();
+
+        PHPMailerService::send($user->email, 'Pengembalian Aset Dikonfirmasi', $html);
+
+        return back()->with('success', 'Pengembalian dikonfirmasi dan email dikirim ke user');
     }
+
 
     private function filteredBorrowings(array $filters)
     {

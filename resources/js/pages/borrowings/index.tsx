@@ -105,7 +105,7 @@ export default function Borrowings({
     const createForm = useForm({
         user_id: '',
         asset_id: '',
-        borrow_date: '',
+        borrow_date: today,
         return_date: '',
     });
 
@@ -247,12 +247,13 @@ export default function Borrowings({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Peminjaman" />
             <div className="space-y-6 p-6">
-                {pendingBorrowingCount > 0 && (
-                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300">
-                        Ada {pendingBorrowingCount} permintaan peminjaman yang
-                        menunggu persetujuan Anda.
-                    </div>
-                )}
+                {pendingBorrowingCount > 0 &&
+                    permissions.includes('manage users') && (
+                        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300">
+                            Ada {pendingBorrowingCount} permintaan peminjaman
+                            yang menunggu persetujuan Anda.
+                        </div>
+                    )}
 
                 <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
                     <div className="max-w-md flex-1">
@@ -291,13 +292,22 @@ export default function Borrowings({
                                     <SelectValue placeholder="Semua Status" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="semua">
+                                    <SelectItem
+                                        value="semua"
+                                        disabled={
+                                            filterState.status === 'semua'
+                                        }
+                                    >
                                         Semua Status
                                     </SelectItem>
                                     {statuses.map((s) => (
                                         <SelectItem
                                             key={s.id}
                                             value={s.name.toLowerCase()}
+                                            disabled={
+                                                filterState.status ===
+                                                s.name.toLowerCase()
+                                            }
                                         >
                                             {s.name}
                                         </SelectItem>
@@ -419,7 +429,6 @@ export default function Borrowings({
                                         <DatePicker
                                             label="Tanggal Pinjam"
                                             value={createForm.data.borrow_date}
-                                            defaultValue={today}
                                             onChange={(value) =>
                                                 createForm.setData(
                                                     'borrow_date',
@@ -550,45 +559,57 @@ export default function Borrowings({
                                                 >
                                                     <Eye className="h-4 w-4" />
                                                 </Button>
-                                                {b.status.name ===
-                                                    'Menunggu' && (
+                                                {permissions.includes(
+                                                    'manage users',
+                                                ) && (
                                                     <>
-                                                        <Button
-                                                            size="sm"
-                                                            onClick={() =>
-                                                                setApproveTarget(
-                                                                    b,
-                                                                )
-                                                            }
-                                                        >
-                                                            <CheckCircle className="mr-1 h-4 w-4" />
-                                                            Setujui
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="destructive"
-                                                            onClick={() =>
-                                                                setRejectTarget(
-                                                                    b,
-                                                                )
-                                                            }
-                                                        >
-                                                            <XCircle className="mr-1 h-4 w-4" />
-                                                            Tolak
-                                                        </Button>
+                                                        {b.status.name ===
+                                                            'Menunggu' && (
+                                                            <>
+                                                                <Button
+                                                                    size="sm"
+                                                                    onClick={() =>
+                                                                        setApproveTarget(
+                                                                            b,
+                                                                        )
+                                                                    }
+                                                                    className="flex items-center gap-1"
+                                                                >
+                                                                    <CheckCircle className="h-4 w-4" />
+                                                                    Setujui
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="destructive"
+                                                                    onClick={() =>
+                                                                        setRejectTarget(
+                                                                            b,
+                                                                        )
+                                                                    }
+                                                                    className="flex items-center gap-1"
+                                                                >
+                                                                    <XCircle className="h-4 w-4" />
+                                                                    Tolak
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                        {b.status.name ===
+                                                            'Disetujui' && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    setReturnTarget(
+                                                                        b,
+                                                                    )
+                                                                }
+                                                                className="flex items-center gap-1"
+                                                            >
+                                                                Konfirmasi
+                                                                Pengembalian
+                                                            </Button>
+                                                        )}
                                                     </>
-                                                )}
-                                                {b.status.name ===
-                                                    'Disetujui' && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() =>
-                                                            setReturnTarget(b)
-                                                        }
-                                                    >
-                                                        Konfirmasi Pengembalian
-                                                    </Button>
                                                 )}
                                             </td>
                                         </tr>

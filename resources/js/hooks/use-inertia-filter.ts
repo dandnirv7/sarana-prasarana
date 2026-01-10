@@ -1,52 +1,74 @@
 import { router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
-import { useDebounce } from './use-debounce';
+import { useRef, useState } from 'react';
 
-export function useInertiaFilter<T extends Record<string, any>>(
+export type BaseInertiaFilter = {
+    search?: string;
+    status?: string;
+    kategori?: string;
+    role?: string;
+    start_date?: string;
+    end_date?: string;
+    page?: number;
+};
+
+export function useInertiaFilter<T extends BaseInertiaFilter>(
     url: string,
     initialFilters: T,
 ) {
-    const [filters, setFilters] = useState<T>(initialFilters);
-    const debouncedSearch = useDebounce((filters as any).search ?? '', 500);
+    const [filters, setFiltersState] = useState<T>(initialFilters);
+    const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
-    const apply = (params: Partial<T> & { page?: number } = {}) => {
-        const next = { ...filters, ...params };
-        setFilters(next);
+    const applyQuery = (updated: T) => {
+        const queryParams: Record<string, any> = {};
 
-        const queryParams: Partial<T> & { page?: number } = {};
+        Object.entries(updated).forEach(([key, value]) => {
+            if (value === undefined || value === null || value === '') return;
 
-        Object.keys(next).forEach((key) => {
-            const value = (next as any)[key];
-            if (value !== undefined && value !== null && value !== '') {
-                if (
-                    (key === 'status' && value === 'semua') ||
-                    (key === 'role' && value === 'semua')
-                )
-                    return;
-                (queryParams as any)[key] = value;
-            }
+            if (
+                (key === 'status' && value === 'semua') ||
+                (key === 'role' && value === 'semua')
+            )
+                return;
+
+            queryParams[key] = value;
         });
 
-        if (params.page && params.page !== 1) {
-            queryParams.page = params.page;
-        }
+        if (queryParams.page === 1) delete queryParams.page;
 
         router.get(url, queryParams, {
             preserveState: true,
+            preserveScroll: true,
             replace: true,
         });
     };
 
-    useEffect(() => {
-        apply({ ...(filters as any), search: debouncedSearch });
-    }, [
-        debouncedSearch,
-        filters.status,
-        filters.kategori,
-        filters.start_date,
-        filters.end_date,
-        filters.role,
-    ]);
+    const setFilters = (next: Partial<T> & { page?: number }) => {
+        const updated = { ...filters, ...next };
+        setFiltersState(updated);
+        applyQuery(updated);
+    };
 
-    return { filters, setFilters, apply };
+    const setSearch = (search: string, delay = 500) => {
+        const updated = { ...filters, search };
+        setFiltersState(updated);
+
+        if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+
+        debounceTimeout.current = setTimeout(() => {
+            applyQuery(updated);
+        }, delay);
+    };
+
+    const apply = (params: Partial<T> & { page?: number } = {}) => {
+        const updated = { ...filters, ...params };
+        setFiltersState(updated);
+        applyQuery(updated);
+    };
+
+    return {
+        filters,
+        setFilters,
+        setSearch,
+        apply,
+    };
 }

@@ -3,7 +3,6 @@ import { CheckCircle, Download, FileText } from 'lucide-react';
 import { useState } from 'react';
 
 import AlertToast from '@/components/common/alert-toast';
-import DoubleConfirmationModal from '@/components/common/double-confirmation-modal';
 import Modal from '@/components/common/modal';
 import Pagination from '@/components/common/pagination';
 import { Badge } from '@/components/ui/badge';
@@ -304,7 +303,10 @@ export default function Returns() {
                                                     {r.borrowing.borrow_date}
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    {r.return_date_actual}
+                                                    {r.return_date_actual !==
+                                                    null
+                                                        ? r.return_date_actual
+                                                        : '-'}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <Badge
@@ -371,87 +373,82 @@ export default function Returns() {
                 </Card>
 
                 {selectedItem && (
-                    <Modal
-                        isOpen={isModalOpen}
-                        onClose={() => setIsModalOpen(false)}
-                        title="Konfirmasi Pengembalian Aset"
-                    >
-                        <div className="space-y-4">
-                            <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                                <p className="text-sm text-muted-foreground">
-                                    Aset yang dikembalikan:
-                                </p>
-                                <p className="text-lg font-semibold">
-                                    {selectedItem.borrowing.asset.name}
-                                </p>
+                    <div>
+                        <Modal
+                            isOpen={isModalOpen}
+                            onClose={() => setIsModalOpen(false)}
+                            title="Konfirmasi Pengembalian Aset"
+                        >
+                            <div className="space-y-4">
+                                <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
+                                    <p className="text-sm text-muted-foreground">
+                                        Aset yang dikembalikan:
+                                    </p>
+                                    <p className="text-lg font-semibold">
+                                        {selectedItem.borrowing.asset.name}
+                                    </p>
+                                </div>
+                                <div>
+                                    <Label>Kondisi Aset</Label>
+                                    <Select
+                                        value={createForm.data.asset_condition}
+                                        onValueChange={(value) =>
+                                            createForm.setData(
+                                                'asset_condition',
+                                                value,
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Pilih kondisi aset" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Baik">
+                                                Baik
+                                            </SelectItem>
+                                            <SelectItem value="Rusak">
+                                                Rusak
+                                            </SelectItem>
+                                            <SelectItem value="Perbaikan">
+                                                Perbaikan
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label>Catatan</Label>
+                                    <textarea
+                                        value={createForm.data.note}
+                                        onChange={(e) =>
+                                            createForm.setData(
+                                                'note',
+                                                e.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded border px-3 py-2"
+                                        placeholder="Masukkan catatan (opsional)"
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setIsModalOpen(false)}
+                                    >
+                                        Batal
+                                    </Button>
+                                    <Button
+                                        onClick={handleSubmitReturn}
+                                        disabled={
+                                            !createForm.data.asset_condition
+                                        }
+                                    >
+                                        Konfirmasi
+                                    </Button>
+                                </div>
                             </div>
-                            <div>
-                                <Label>Kondisi Aset</Label>
-                                <Select
-                                    value={createForm.data.asset_condition}
-                                    onValueChange={(value) =>
-                                        createForm.setData(
-                                            'asset_condition',
-                                            value,
-                                        )
-                                    }
-                                >
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Pilih kondisi aset" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Baik">
-                                            Baik
-                                        </SelectItem>
-                                        <SelectItem value="Rusak">
-                                            Rusak
-                                        </SelectItem>
-                                        <SelectItem value="Perbaikan">
-                                            Perbaikan
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label>Catatan</Label>
-                                <textarea
-                                    value={createForm.data.note}
-                                    onChange={(e) =>
-                                        createForm.setData(
-                                            'note',
-                                            e.target.value,
-                                        )
-                                    }
-                                    className="w-full rounded border px-3 py-2"
-                                    placeholder="Masukkan catatan (opsional)"
-                                />
-                            </div>
-                            <div className="flex justify-end gap-2">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setIsModalOpen(false)}
-                                >
-                                    Batal
-                                </Button>
-                                <Button
-                                    onClick={handleSubmitReturn}
-                                    disabled={!createForm.data.asset_condition}
-                                >
-                                    Konfirmasi
-                                </Button>
-                            </div>
-                        </div>
-                    </Modal>
+                        </Modal>
+                    </div>
                 )}
-
-                <DoubleConfirmationModal
-                    isOpen={returnConfirm !== null}
-                    title="Konfirmasi Pengembalian Aset"
-                    message={`Apakah Anda yakin ingin mengkonfirmasi pengembalian "${returnConfirm?.borrowing.asset.name}" dengan kondisi yang telah dipilih?`}
-                    confirmText="Konfirmasi"
-                    onConfirm={handleSubmitReturn}
-                    onCancel={() => setReturnConfirm(null)}
-                />
 
                 {alert && (
                     <AlertToast

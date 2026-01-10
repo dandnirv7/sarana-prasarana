@@ -16,3 +16,14 @@ export function isSameUrl(
 export function resolveUrl(url: NonNullable<InertiaLinkProps['href']>): string {
     return typeof url === 'string' ? url : url.url;
 }
+
+export function disableFutureDates(date: string | Date) {
+    if (!date) return false;
+
+    const selectedDate = typeof date === 'string' ? new Date(date) : date;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return selectedDate > today;
+}

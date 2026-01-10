@@ -6,6 +6,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import dayjs from 'dayjs';
 import { CalendarIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -17,11 +18,7 @@ function formatDate(date: Date | undefined) {
     return `${yyyy}-${mm}-${dd}`;
 }
 
-function disableFutureDates(date: Date) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return date > today;
-}
+const todayDate = dayjs().toDate();
 
 export default function DatePickerField({
     label,
@@ -35,37 +32,40 @@ export default function DatePickerField({
     onChange: (value: string) => void;
 }) {
     const [open, setOpen] = useState(false);
+
     const [date, setDate] = useState<Date | undefined>(
         value
             ? new Date(value)
             : defaultValue
               ? new Date(defaultValue)
-              : undefined,
+              : todayDate,
     );
-    const [month, setMonth] = useState<Date | undefined>(date);
+
+    const [month, setMonth] = useState<Date | undefined>(
+        value
+            ? new Date(value)
+            : defaultValue
+              ? new Date(defaultValue)
+              : todayDate,
+    );
 
     useEffect(() => {
-        setDate(
-            value
-                ? new Date(value)
-                : defaultValue
-                  ? new Date(defaultValue)
-                  : undefined,
-        );
-        setMonth(
-            value
-                ? new Date(value)
-                : defaultValue
-                  ? new Date(defaultValue)
-                  : undefined,
-        );
-    }, [value]);
+        const nextDate = value
+            ? new Date(value)
+            : defaultValue
+              ? new Date(defaultValue)
+              : todayDate;
+
+        setDate(nextDate);
+        setMonth(nextDate);
+    }, [value, defaultValue]);
 
     return (
         <div className="flex flex-col gap-1">
             <Label className="text-sm font-medium text-muted-foreground">
                 {label}
             </Label>
+
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <Button
@@ -76,6 +76,7 @@ export default function DatePickerField({
                         <CalendarIcon className="ml-2 h-4 w-4" />
                     </Button>
                 </PopoverTrigger>
+
                 <PopoverContent
                     className="w-auto overflow-hidden p-0"
                     align="start"
@@ -90,7 +91,6 @@ export default function DatePickerField({
                             onChange(formatDate(selected));
                             setOpen(false);
                         }}
-                        disabled={disableFutureDates}
                     />
                 </PopoverContent>
             </Popover>
